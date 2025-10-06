@@ -10,6 +10,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UploadModule } from './upload/upload.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { LocationsModule } from './modules/locations/locations.module';
+import { ApartmentsModule } from './modules/apartment/apartments.module';
 
 @Module({
   imports: [
@@ -35,12 +37,14 @@ import { join } from 'path';
     }),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads', 'images'),
-      serveRoot: '/static/images', // => /static/images/<filename>
+      serveRoot: '/static/images',
     }),
     UploadModule,
     UsersModule,
     BlogModule,
-    AuthModule
+    AuthModule,
+    LocationsModule,
+    ApartmentsModule
   ],
 })
 export class AppModule {}
