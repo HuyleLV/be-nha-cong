@@ -1,7 +1,7 @@
 // src/apartments/apartments.service.ts
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { Brackets, ILike, Repository } from 'typeorm';
 import { Apartment } from './entities/apartment.entity';
 import { Location } from '../locations/entities/locations.entity';
 import { CreateApartmentDto } from './dto/create-apartment.dto';
@@ -60,37 +60,47 @@ export class ApartmentsService {
   }
 
   async findAll(q: QueryApartmentDto) {
-    const page = q.page ?? 1;
-    const limit = q.limit ?? 20;
+    const page  = Number(q.page)  || 1;
+    const limit = Number(q.limit) || 20;
   
     const qb = this.repo.createQueryBuilder('a')
-      .leftJoinAndSelect('a.location', 'l') // ✅ nối bảng locations
-      .leftJoinAndSelect('l.parent', 'p')   // (tuỳ chọn) nối thêm cha để lấy tên tỉnh/thành
+      .leftJoinAndSelect('a.location', 'l')
+      .leftJoinAndSelect('l.parent', 'p') // nếu cần tỉnh/thành
       .orderBy('a.createdAt', 'DESC')
       .take(limit)
       .skip((page - 1) * limit);
   
-    // ✅ lọc theo location
-    if (q.locationId) qb.andWhere('l.id = :lid', { lid: q.locationId });
-    if (q.locationSlug) qb.andWhere('l.slug = :lslug', { lslug: q.locationSlug });
+    // by location
+    if (q.locationId)   qb.andWhere('l.id = :lid',        { lid: q.locationId });
+    if (q.locationSlug) qb.andWhere('l.slug = :lslug',    { lslug: q.locationSlug });
   
-    // lọc khác
+    // status
     if (q.status) qb.andWhere('a.status = :st', { st: q.status });
-    if (q.q) qb.andWhere('a.title ILIKE :kw', { kw: `%${q.q}%` });
-    if (q.bedrooms != null) qb.andWhere('a.bedrooms >= :bed', { bed: q.bedrooms });
+  
+    // text search (compat MySQL/Postgres): LOWER(...) LIKE :kw
+    if (q.q) {
+      const kw = `%${q.q.toLowerCase()}%`;
+      qb.andWhere(new Brackets((w) => {
+        w.where('LOWER(a.title) LIKE :kw', { kw })
+         .orWhere('LOWER(l.name) LIKE :kw', { kw })
+         .orWhere('LOWER(p.name) LIKE :kw', { kw });
+        // Nếu muốn bỏ qua dấu hoàn toàn trên MariaDB, có thể dùng:
+        // w.where('a.title COLLATE utf8mb4_unicode_ci LIKE :kw', { kw })
+      }));
+    }
+  
+    // numeric filters
+    if (q.bedrooms  != null) qb.andWhere('a.bedrooms  >= :bed',  { bed: q.bedrooms });
     if (q.bathrooms != null) qb.andWhere('a.bathrooms >= :bath', { bath: q.bathrooms });
-    if (q.minPrice != null) qb.andWhere('a.rentPrice >= :minp', { minp: q.minPrice });
-    if (q.maxPrice != null) qb.andWhere('a.rentPrice <= :maxp', { maxp: q.maxPrice });
+    if (q.minPrice  != null) qb.andWhere('a.rentPrice >= :minp', { minp: q.minPrice });
+    if (q.maxPrice  != null) qb.andWhere('a.rentPrice <= :maxp', { maxp: q.maxPrice });
   
     const [data, total] = await qb.getManyAndCount();
   
-    // (tuỳ chọn) build addressPath nếu cần
+    // (tuỳ chọn) build addressPath
     const mapped = data.map((apt) => ({
       ...apt,
-      addressPath: [
-        apt.location?.name,        
-        apt.location?.parent?.name, 
-      ].filter(Boolean).join(', '),
+      addressPath: [apt.location?.name, apt.location?.parent?.name].filter(Boolean).join(', '),
     }));
   
     return {
@@ -99,10 +109,53 @@ export class ApartmentsService {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.max(1, Math.ceil(total / limit)),
       },
     };
-  }  
+  }
+
+  async getHomeSections(citySlug: string, limitPerDistrict = 4) {
+    // 1️⃣ Tìm thành phố
+    const city = await this.locRepo.findOne({
+      where: { slug: citySlug, level: 'Province' },
+    });
+    if (!city) throw new NotFoundException('Không tìm thấy thành phố');
+
+    // 2️⃣ Lấy danh sách quận/huyện trong city
+    const districts = await this.locRepo.find({
+      where: { parent: { id: city.id }, level: 'District' },
+      order: { name: 'ASC' },
+    });
+
+    // 3️⃣ Cho mỗi quận lấy ra N căn hộ mới nhất (đã publish)
+    const results = [];
+    for (const district of districts) {
+      const apartments = await this.repo.find({
+        where: {
+          location: { id: district.id },
+          status: 'published',
+        },
+        order: { createdAt: 'DESC' },
+        take: limitPerDistrict,
+      });
+
+      if (apartments.length > 0) {
+        results.push({
+          district: {
+            id: district.id,
+            name: district.name,
+            slug: district.slug,
+          },
+          apartments,
+        });
+      }
+    }
+
+    return {
+      city: { id: city.id, name: city.name, slug: city.slug },
+      sections: results,
+    };
+  }
 
   async findOne(id: number) {
     const item = await this.repo.findOne({ where: { id }, relations: { location: true } });

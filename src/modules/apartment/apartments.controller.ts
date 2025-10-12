@@ -16,12 +16,20 @@ export class ApartmentsController {
     return this.service.findAll(q);
   }
 
+  @Get('home-sections')
+  getHomeSections(
+    @Query('citySlug') citySlug: string,
+    @Query('limitPerDistrict') limitPerDistrict?: number,
+  ) {
+    return this.service.getHomeSections(citySlug, limitPerDistrict);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
   }
 
-  @Get('by-slug/:slug')
+  @Get('slug/:slug')
   findBySlug(@Param('slug') slug: string) {
     return this.service.findBySlug(slug);
   }
