@@ -62,6 +62,18 @@ import {
     @IsOptional()
     viewCount?: number;
   
+    @ApiPropertyOptional({ example: 0 })
+    @IsNumber()
+    @IsOptional()
+    pointSeo?: number;
+    
+    @ApiPropertyOptional({
+      example: 'keyword',
+    })
+    @IsString()
+    @IsOptional()
+    focusKeyword?: string;
+
     @ApiPropertyOptional({ example: 5 })
     @IsNumber()
     @IsOptional()

@@ -17,6 +17,9 @@ export class BlogService {
         const [items, total] = await this.repo.findAndCount({
             skip: (page - 1) * limit,
             take: limit,
+            order: {
+              id: 'DESC',
+            },
         });
 
         return {
@@ -73,6 +76,8 @@ export class BlogService {
           isPinned: dto.isPinned ?? blog.isPinned,
           tags: dto.tags ?? blog.tags,
           viewCount: dto.viewCount ?? blog.viewCount,
+          pointSeo: dto.pointSeo ?? blog.pointSeo,
+          focusKeyword: dto.focusKeyword ?? blog.focusKeyword,
           authorId: dto.authorId ?? blog.authorId,
         });
       

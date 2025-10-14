@@ -39,7 +39,13 @@ export class Blog {
 
   @Column({ type: 'int', default: 0, nullable: true })
   viewCount: number;
+
+  @Column({ type: 'int', default: 0, nullable: true })
+  pointSeo: number;
   
+  @Column({ length: 200, nullable: true })
+  focusKeyword: string;
+
   @Column({ nullable: true })
   authorId?: number;
 
