@@ -37,8 +37,7 @@ export class ApartmentsController {
   @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() dto: CreateApartmentDto, @Req() req: Request) {
-    const userId = (req as any)?.user?.id; // nếu đã gắn JwtAuthGuard
-    console.log(userId)
+    const userId = (req as any)?.user?.id; 
     return this.service.create(dto, userId);
   }
 
