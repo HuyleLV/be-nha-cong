@@ -1,12 +1,12 @@
-// src/apartments/apartments.controller.ts
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, ParseIntPipe, Req, UseGuards, Put } from '@nestjs/common';
-import { Request } from 'express';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { ApartmentsService } from './apartments.service';
 import { CreateApartmentDto } from './dto/create-apartment.dto';
 import { UpdateApartmentDto } from './dto/update-apartment.dto';
 import { QueryApartmentDto } from './dto/query-apartment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+@ApiTags('Apartments')
 @Controller('apartments')
 export class ApartmentsController {
   constructor(private readonly service: ApartmentsService) {}
@@ -16,40 +16,37 @@ export class ApartmentsController {
     return this.service.findAll(q);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('home-sections')
-  getHomeSections(
+  async getHomeSections(
     @Query('citySlug') citySlug: string,
-    @Query('limitPerDistrict') limitPerDistrict?: number,
+    @Query('limitPerDistrict') limitPerDistrict = 4,
+    @Req() req: any,
   ) {
-    return this.service.getHomeSections(citySlug, limitPerDistrict);
+    const userId = req.user?.id ?? req.user?.sub ?? undefined; // tuỳ payload
+    return this.service.getHomeSections(citySlug, Number(limitPerDistrict), userId);
   }
 
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
-  }
-
-  @Get('slug/:slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.service.findBySlug(slug);
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() dto: CreateApartmentDto, @Req() req: Request) {
-    const userId = (req as any)?.user?.id; 
-    return this.service.create(dto, userId);
+  create(@Body() dto: CreateApartmentDto) {
+    return this.service.create(dto /*, req.user?.id */);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateApartmentDto) {
-    return this.service.update(id, dto);
+  @Get(':idOrSlug')
+  findOne(@Param('idOrSlug') idOrSlug: string, @Req() req: any) {
+    const key = /^\d+$/.test(idOrSlug) ? Number(idOrSlug) : idOrSlug;
+    const userId = req.user?.id ?? req.user?.sub ?? undefined; // tuỳ payload
+    return this.service.findOneByIdOrSlug(key, userId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateApartmentDto) {
+    return this.service.update(Number(id), dto);
+  }
+
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.service.remove(id);
+  remove(@Param('id') id: string) {
+    return this.service.remove(Number(id));
   }
 }

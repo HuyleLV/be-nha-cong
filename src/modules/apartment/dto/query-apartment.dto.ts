@@ -1,123 +1,73 @@
-// src/apartments/dto/query-apartment.dto.ts
-import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
-import { Type } from 'class-transformer';
-import { APARTMENT_STATUS, ApartmentStatus } from './create-apartment.dto';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsBooleanString, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { ApartmentStatus } from '../entities/apartment.entity';
 
 export class QueryApartmentDto {
-  /** ID khu vực (location_id) */
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  locationId?: number;
+  @ApiPropertyOptional({ default: 1 }) 
+  @IsOptional() 
+  page?: number = 1;
 
-  /** slug khu vực (ví dụ: ha-dong, ba-dinh, cau-giay...) */
-  @IsOptional()
-  @IsString()
-  locationSlug?: string;
+  @ApiPropertyOptional({ default: 20 }) 
+  @IsOptional() 
+  limit?: number = 20;
 
-  /** Giá thuê tối thiểu (lọc theo rentPrice) */
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  minPrice?: number;
-
-  /** Giá thuê tối đa */
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  maxPrice?: number;
-
-  /** Diện tích tối thiểu (m2) */
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  minArea?: number;
-
-  /** Diện tích tối đa (m2) */
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  maxArea?: number;
-
-  /** Lọc số phòng ngủ */
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  bedrooms?: number;
-
-  /** Lọc số phòng tắm */
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  bathrooms?: number;
-
-  /** Lọc theo trạng thái đăng (draft/published/archived) */
-  @IsOptional()
-  @IsIn(APARTMENT_STATUS as any)
-  status?: ApartmentStatus;
-
-  /** Tìm kiếm theo tiêu đề hoặc mô tả */
-  @IsOptional()
+  @ApiPropertyOptional({ description: 'tìm theo tiêu đề/địa chỉ' })
+  @IsOptional() 
   @IsString()
   q?: string;
 
-  /** ===== Lọc theo tiện nghi ===== */
+  @ApiPropertyOptional() 
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  hasPrivateBathroom?: boolean;
+  locationId?: number;
 
+  @ApiPropertyOptional() 
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  hasMezzanine?: boolean;
+  buildingId?: number;
 
+  @ApiPropertyOptional() 
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  noOwnerLiving?: boolean;
+  minPrice?: number;
 
+  @ApiPropertyOptional() 
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  hasAirConditioner?: boolean;
+  maxPrice?: number;
 
+  @ApiPropertyOptional() 
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  hasWaterHeater?: boolean;
+  bedrooms?: number;
 
+  @ApiPropertyOptional() 
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  hasWashingMachine?: boolean;
+  bathrooms?: number;
 
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  hasWardrobe?: boolean;
+  @ApiPropertyOptional({ enum: ['draft','published','archived'] })
+  @IsOptional() 
+  @IsEnum(['draft','published','archived'])
+  status?: ApartmentStatus;
 
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  flexibleHours?: boolean;
+  // quick boolean filters
+  @ApiPropertyOptional() 
+  @IsOptional() 
+  @IsBooleanString()
+  hasPrivateBathroom?: string;
 
-  /** ===== Phân trang ===== */
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
+  @ApiPropertyOptional() 
+  @IsOptional() 
+  @IsBooleanString()
+  hasMezzanine?: string;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit?: number = 20;
+  @ApiPropertyOptional() 
+  @IsOptional() 
+  @IsBooleanString()
+  hasAirConditioner?: string;
 
+  @ApiPropertyOptional() 
+  @IsOptional() 
+  @IsBooleanString()
+  hasWashingMachine?: string;
+
+  // lọc theo số lượng ảnh tối thiểu
+  @ApiPropertyOptional({ description: 'yêu cầu số ảnh tối thiểu' })
   @IsOptional()
-  @IsIn(['newest', 'price_asc', 'price_desc', 'area_desc'])
-  sort?: 'newest' | 'price_asc' | 'price_desc' | 'area_desc';
+  minImages?: number;
 }

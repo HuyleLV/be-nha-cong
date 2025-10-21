@@ -13,6 +13,11 @@ import { join } from 'path';
 import { LocationsModule } from './modules/locations/locations.module';
 import { ApartmentsModule } from './modules/apartment/apartments.module';
 import { PartnersModule } from './modules/partners/partners.module';
+import { BuildingsModule } from './modules/building/building.module';
+import { OwnershipsModule } from './modules/ownership/ownership.module';
+import { FavoritesModule } from './modules/favorites/favorites.module';
+import { View } from 'typeorm';
+import { ViewingsModule } from './modules/viewings/viewings.module';
 
 @Module({
   imports: [
@@ -46,7 +51,11 @@ import { PartnersModule } from './modules/partners/partners.module';
     AuthModule,
     LocationsModule,
     ApartmentsModule,
-    PartnersModule
+    PartnersModule,
+    BuildingsModule,
+    OwnershipsModule,
+    FavoritesModule,
+    ViewingsModule,
   ],
 })
 export class AppModule {}

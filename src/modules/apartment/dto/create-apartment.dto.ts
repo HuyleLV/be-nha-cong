@@ -1,172 +1,109 @@
-// src/apartments/dto/create-apartment.dto.ts
+import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsBoolean,
-  IsIn,
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Min,
-  IsNumberString,
+  IsArray, IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsPositive,
+  IsString, MaxLength, Min, ArrayMaxSize
 } from 'class-validator';
-import { Type } from 'class-transformer';
-
-export const APARTMENT_STATUS = ['draft', 'published', 'archived'] as const;
-export type ApartmentStatus = typeof APARTMENT_STATUS[number];
+import { ApartmentStatus } from '../entities/apartment.entity';
 
 export class CreateApartmentDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(200)
+  @ApiProperty() @IsString() @IsNotEmpty() @MaxLength(200)
   title: string;
 
-  /** DB yêu cầu NOT NULL; có thể để optional để service tự sinh khi thiếu */
-  @IsOptional()
-  @IsString()
-  @MaxLength(220)
+  @ApiProperty({ required: false }) @IsOptional() @IsString() @MaxLength(220)
   slug?: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(300)
+  @ApiProperty({ required: false }) @IsOptional() @IsString() @MaxLength(300)
   excerpt?: string;
 
-  @IsOptional()
-  @IsString()
+  @ApiProperty({ required: false }) @IsOptional() @IsString()
   description?: string;
 
-  /** Liên kết Location qua khóa ngoại: gửi locationId từ client */
-  @Type(() => Number)
-  @IsInt()
+  @ApiProperty() @IsInt() @IsPositive()
   locationId: number;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
+  @ApiProperty({ required: false }) @IsOptional() @IsInt()
+  buildingId?: number | null;
+
+  @ApiProperty({ required: false }) @IsOptional() @IsString() @MaxLength(200)
   streetAddress?: string;
 
-  /** entity: decimal(10,7) → dùng string trong DB */
-  @IsOptional()
-  @IsNumberString()
+  @ApiProperty({ required: false, description: 'decimal string' })
+  @IsOptional() @IsString()
   lat?: string;
 
-  /** entity: decimal(10,7) → dùng string trong DB */
-  @IsOptional()
-  @IsNumberString()
+  @ApiProperty({ required: false, description: 'decimal string' })
+  @IsOptional() @IsString()
   lng?: string;
 
-  /** default 0 trong DB, cho phép gửi lên để override */
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
+  @ApiProperty({ default: 0 }) @IsOptional() @IsInt() @Min(0)
   bedrooms?: number;
 
-  /** default 0 trong DB, cho phép gửi lên để override */
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
+  @ApiProperty({ default: 0 }) @IsOptional() @IsInt() @Min(0)
   bathrooms?: number;
 
-  /** entity: numeric(7,2) → string trong DB */
-  @IsOptional()
-  @IsNumberString()
+  @ApiProperty({ required: false, description: 'numeric string, ví dụ "25.5"' })
+  @IsOptional() @IsString()
   areaM2?: string;
 
-  /** entity: numeric(12,2) → string trong DB (bắt buộc) */
-  @IsNumberString()
+  @ApiProperty({ description: 'numeric string, ví dụ "5500000"' })
+  @IsString() @IsNotEmpty()
   rentPrice: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(10)
-  currency?: string; // default: VND
+  @ApiProperty({ default: 'VND' }) @IsOptional() @IsString() @MaxLength(10)
+  currency?: string = 'VND';
 
-  @IsOptional()
-  @IsIn(APARTMENT_STATUS as any)
-  status?: ApartmentStatus; // default: draft
+  @ApiProperty({ enum: ['draft','published','archived'], default: 'draft' })
+  @IsOptional() @IsEnum(['draft','published','archived'])
+  status?: ApartmentStatus = 'draft';
 
-  @IsOptional()
-  @IsString()
+  @ApiProperty({ required: false }) @IsOptional() @IsString()
   coverImageUrl?: string;
 
-  // ===== Phí dịch vụ =====
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
+  // ====== Gallery images ======
+  @ApiProperty({ type: [String], required: false, description: 'Danh sách URL ảnh' })
+  @IsOptional() @IsArray() @ArrayMaxSize(50)
+  @IsString({ each: true })
+  images?: string[];
+
+  // ====== Fees ======
+  @ApiProperty({ required: false }) @IsOptional() @IsInt() @Min(0)
   electricityPricePerKwh?: number;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
+  @ApiProperty({ required: false }) @IsOptional() @IsInt() @Min(0)
   waterPricePerM3?: number;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
+  @ApiProperty({ required: false }) @IsOptional() @IsInt() @Min(0)
   internetPricePerRoom?: number;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
+  @ApiProperty({ required: false }) @IsOptional() @IsInt() @Min(0)
   commonServiceFeePerPerson?: number;
 
-  // ===== Nội thất =====
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
+  // ====== Furnitures ======
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   hasAirConditioner?: boolean;
 
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   hasWaterHeater?: boolean;
 
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   hasKitchenCabinet?: boolean;
 
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   hasWashingMachine?: boolean;
 
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   hasWardrobe?: boolean;
 
-  // ===== Tiện nghi =====
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
+  // ====== Amenities ======
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   hasPrivateBathroom?: boolean;
 
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   hasMezzanine?: boolean;
 
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   noOwnerLiving?: boolean;
 
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   flexibleHours?: boolean;
-
-  /** ID người tạo (entity: bigint, nullable) */
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  createdById?: number;
 }

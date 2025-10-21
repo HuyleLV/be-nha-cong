@@ -1,287 +1,258 @@
-// src/apartments/apartments.service.ts
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Apartment } from './entities/apartment.entity';
-import { Location } from '../locations/entities/locations.entity';
 import { CreateApartmentDto } from './dto/create-apartment.dto';
 import { UpdateApartmentDto } from './dto/update-apartment.dto';
 import { QueryApartmentDto } from './dto/query-apartment.dto';
-import { makeSlug } from 'src/common/helpers/slug.helper';
+import { Location } from '../locations/entities/locations.entity';
+import { Building } from '../building/entities/building.entity';
+import { Favorite } from '../favorites/entities/favorite.entity'; 
+
+// slug helper
+const toSlug = (s: string) =>
+  (s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9\s-]/g, '')
+    .trim().replace(/\s+/g, '-').replace(/-+/g, '-');
+
+type ApartmentWithFav = Apartment & { favorited: boolean };
 
 @Injectable()
 export class ApartmentsService {
   constructor(
     @InjectRepository(Apartment) private readonly repo: Repository<Apartment>,
     @InjectRepository(Location) private readonly locRepo: Repository<Location>,
+    @InjectRepository(Building) private readonly bRepo: Repository<Building>,
+    @InjectRepository(Favorite) private readonly favRepo: Repository<Favorite>,
   ) {}
 
-  private async ensureLocation(locationId: number) {
-    const loc = await this.locRepo.findOne({ where: { id: locationId } });
-    if (!loc) throw new BadRequestException('Location not found');
-    return loc;
+  private async ensureUniqueSlug(raw: string) {
+    const base = toSlug(raw);
+    let slug = base;
+    let i = 1;
+    while (await this.repo.findOne({ where: { slug } })) slug = `${base}-${i++}`;
+    return slug;
   }
 
-  private async assertSlugUnique(slug: string, excludeId?: number) {
-    const existed = await this.repo.findOne({ where: { slug } });
-    if (existed && existed.id !== excludeId) {
-      throw new BadRequestException('Slug already exists');
+  private async assertRefs(locationId: number, buildingId?: number | null) {
+    const loc = await this.locRepo.findOne({ where: { id: locationId } });
+    if (!loc) throw new BadRequestException('Location không tồn tại');
+
+    if (buildingId != null) {
+      const b = await this.bRepo.findOne({ where: { id: buildingId } });
+      if (!b) throw new BadRequestException('Building không tồn tại');
     }
   }
 
-  async create(dto: CreateApartmentDto, userIdFromReq?: number) {
-    const slug = dto.slug?.trim() || makeSlug(dto.title);
-    if (!slug) throw new BadRequestException('Invalid slug');
-    await this.assertSlugUnique(slug);
+  /** Trả về tập apartmentId user đã yêu thích trong số ids truyền vào */
+  private async getFavIdSet(userId?: number | null, aptIds?: number[]) {
+    if (!userId || !aptIds?.length) return new Set<number>();
+    const favs = await this.favRepo.find({
+      select: ['apartmentId'],
+      where: { userId, apartmentId: In(aptIds) },
+    });
+    return new Set(favs.map(f => f.apartmentId));
+  }
 
-    const location = await this.ensureLocation(dto.locationId);
+  async create(dto: CreateApartmentDto, userId?: number) {
+    await this.assertRefs(dto.locationId, dto.buildingId ?? null);
+    const slug = await this.ensureUniqueSlug(dto.slug || dto.title);
 
-    const createdById = userIdFromReq ?? dto.createdById;
-    if (!createdById) throw new BadRequestException('createdById is required');
+    // chuẩn hoá images
+    const images = Array.isArray(dto.images) ? [...new Set(dto.images.filter(Boolean))] : undefined;
 
     const entity = this.repo.create({
-      title: dto.title,
+      ...dto,
       slug,
-      excerpt: dto.excerpt,
-      description: dto.description,
-      location,
-      streetAddress: dto.streetAddress,
-
-      // decimal/numeric fields trong entity là string → lưu .toString()
-      lat: dto.lat,
-      lng: dto.lng,
-      areaM2: dto.areaM2,
-      rentPrice: dto.rentPrice,
-
-      bedrooms: dto.bedrooms ?? 0,
-      bathrooms: dto.bathrooms ?? 0,
-
+      images,
       currency: dto.currency ?? 'VND',
       status: dto.status ?? 'draft',
-      coverImageUrl: dto.coverImageUrl,
-
-      // phí dịch vụ
-      electricityPricePerKwh: dto.electricityPricePerKwh,
-      waterPricePerM3: dto.waterPricePerM3,
-      internetPricePerRoom: dto.internetPricePerRoom,
-      commonServiceFeePerPerson: dto.commonServiceFeePerPerson,
-
-      // nội thất
-      hasAirConditioner: dto.hasAirConditioner ?? false,
-      hasWaterHeater: dto.hasWaterHeater ?? false,
-      hasKitchenCabinet: dto.hasKitchenCabinet ?? false,
-      hasWashingMachine: dto.hasWashingMachine ?? false,
-      hasWardrobe: dto.hasWardrobe ?? false,
-
-      // tiện nghi
-      hasPrivateBathroom: dto.hasPrivateBathroom ?? false,
-      hasMezzanine: dto.hasMezzanine ?? false,
-      noOwnerLiving: dto.noOwnerLiving ?? false,
-      flexibleHours: dto.flexibleHours ?? false,
-
-      createdById,
+      createdById: userId ?? null,
     });
-
     return this.repo.save(entity);
   }
 
-  async findAll(q: QueryApartmentDto) {
-    const page  = Number(q.page)  || 1;
-    const limit = Number(q.limit) || 20;
+  /** Danh sách + cờ favorited cho user hiện tại (nếu có) */
+  async findAll(q: QueryApartmentDto, currentUserId?: number) {
+    const page = q.page ?? 1;
+    const limit = q.limit ?? 20;
 
     const qb = this.repo.createQueryBuilder('a')
-      .leftJoinAndSelect('a.location', 'l')
-      .leftJoinAndSelect('l.parent', 'p') // lấy tỉnh/thành nếu cần
+      .orderBy('a.id', 'DESC')
       .take(limit)
       .skip((page - 1) * limit);
 
-    // ===== Sắp xếp =====
-    switch (q.sort) {
-      case 'price_asc':
-        qb.orderBy('a.rentPrice', 'ASC');
-        break;
-      case 'price_desc':
-        qb.orderBy('a.rentPrice', 'DESC');
-        break;
-      case 'area_desc':
-        qb.orderBy('a.areaM2', 'DESC');
-        break;
-      case 'newest':
-      default:
-        qb.orderBy('a.createdAt', 'DESC');
-        break;
-    }
-
-    // ===== By location =====
-    if (q.locationId)   qb.andWhere('l.id = :lid',      { lid: q.locationId });
-    if (q.locationSlug) qb.andWhere('l.slug = :lslug',  { lslug: q.locationSlug });
-
-    // ===== Status =====
+    if (q.q) qb.andWhere('(a.title ILIKE :kw OR a.street_address ILIKE :kw)', { kw: `%${q.q}%` });
+    if (q.locationId) qb.andWhere('a.location_id = :lid', { lid: q.locationId });
+    if (q.buildingId) qb.andWhere('a.building_id = :bid', { bid: q.buildingId });
     if (q.status) qb.andWhere('a.status = :st', { st: q.status });
-
-    // ===== Text search =====
-    if (q.q) {
-      const kw = `%${q.q.toLowerCase()}%`;
-      qb.andWhere(new Brackets((w) => {
-        w.where('LOWER(a.title) LIKE :kw', { kw })
-         .orWhere('LOWER(a.excerpt) LIKE :kw', { kw })
-         .orWhere('LOWER(a.description) LIKE :kw', { kw })
-         .orWhere('LOWER(l.name) LIKE :kw', { kw })
-         .orWhere('LOWER(p.name) LIKE :kw', { kw });
-      }));
-    }
-
-    // ===== Numeric filters =====
-    if (q.bedrooms  != null) qb.andWhere('a.bedrooms  >= :bed',  { bed: q.bedrooms });
+    if (q.bedrooms != null) qb.andWhere('a.bedrooms >= :bed', { bed: q.bedrooms });
     if (q.bathrooms != null) qb.andWhere('a.bathrooms >= :bath', { bath: q.bathrooms });
+    if (q.minPrice != null) qb.andWhere('a.rent_price >= :minp', { minp: q.minPrice });
+    if (q.maxPrice != null) qb.andWhere('a.rent_price <= :maxp', { maxp: q.maxPrice });
 
-    // rentPrice: numeric(12,2) trong DB → so sánh số
-    if (q.minPrice != null) qb.andWhere('a.rentPrice >= :minp', { minp: q.minPrice });
-    if (q.maxPrice != null) qb.andWhere('a.rentPrice <= :maxp', { maxp: q.maxPrice });
+    // boolean filters
+    const asBool = (v?: string) => (v === 'true' ? true : v === 'false' ? false : undefined);
+    const f = {
+      pb: asBool(q.hasPrivateBathroom),
+      mz: asBool(q.hasMezzanine),
+      ac: asBool(q.hasAirConditioner),
+      wm: asBool(q.hasWashingMachine),
+    };
+    if (f.pb !== undefined) qb.andWhere('a.has_private_bathroom = :pb', { pb: f.pb });
+    if (f.mz !== undefined) qb.andWhere('a.has_mezzanine = :mz', { mz: f.mz });
+    if (f.ac !== undefined) qb.andWhere('a.has_air_conditioner = :ac', { ac: f.ac });
+    if (f.wm !== undefined) qb.andWhere('a.has_washing_machine = :wm', { wm: f.wm });
 
-    // areaM2: numeric(7,2) trong DB
-    if (q.minArea  != null) qb.andWhere('a.areaM2 >= :mina', { mina: q.minArea });
-    if (q.maxArea  != null) qb.andWhere('a.areaM2 <= :maxa', { maxa: q.maxArea });
-
-    // ===== Boolean amenities (chỉ lọc khi client gửi true) =====
-    if (q.hasPrivateBathroom === true) qb.andWhere('a.hasPrivateBathroom = true');
-    if (q.hasMezzanine === true)       qb.andWhere('a.hasMezzanine = true');
-    if (q.noOwnerLiving === true)      qb.andWhere('a.noOwnerLiving = true');
-    if (q.flexibleHours === true)      qb.andWhere('a.flexibleHours = true');
-
-    if (q.hasAirConditioner === true)  qb.andWhere('a.hasAirConditioner = true');
-    if (q.hasWaterHeater === true)     qb.andWhere('a.hasWaterHeater = true');
-    if (q.hasWashingMachine === true)  qb.andWhere('a.hasWashingMachine = true');
-    if (q.hasWardrobe === true)        qb.andWhere('a.hasWardrobe = true');
+    // lọc theo số ảnh tối thiểu
+    if (q.minImages != null) {
+      qb.andWhere(`COALESCE(a.images, '[]') <> ''`);
+      qb.andWhere(
+        `(CASE WHEN a.images IS NULL THEN 0 ELSE (length(a.images) - length(replace(a.images, '","', ''))) / 3 + 1 END) >= :minImgs`,
+        { minImgs: q.minImages }
+      );
+    }
 
     const [items, total] = await qb.getManyAndCount();
 
-    const mapped = items.map((apt) => ({
-      ...apt,
-      addressPath: [apt.location?.name, apt.location?.parent?.name].filter(Boolean).join(', '),
-    }));
+    // === favorited map ===
+    const favSet = await this.getFavIdSet(currentUserId, items.map(i => i.id));
+    const itemsWithFav = items.map(i => ({ ...i, favorited: favSet.has(i.id) }));
 
     return {
-      items: mapped,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.max(1, Math.ceil(total / limit)),
-      },
+      items: itemsWithFav,
+      meta: { total, page, limit, pageCount: Math.ceil(total / limit) },
     };
   }
 
-  async getHomeSections(citySlug: string, limitPerDistrict = 4) {
-    // 1) Thành phố (chú ý level tùy theo bạn định nghĩa: 'Province'/'City')
-    const city = await this.locRepo.findOne({
-      where: { slug: citySlug, level: 'Province' as any },
-    });
+  async getHomeSections(
+    citySlug: string,
+    limitPerDistrict = 4,
+    currentUserId?: number,
+  ) {
+    // 1) City theo slug (bất kỳ cấp không phải district)
+    const city = await this.locRepo.createQueryBuilder('c')
+      .where('c.slug = :slug', { slug: citySlug })
+      .andWhere("LOWER(c.level) <> 'district'")
+      .getOne();
+
     if (!city) throw new NotFoundException('Không tìm thấy thành phố');
 
-    // 2) Danh sách quận/huyện
+    // 2) Districts con của city
     const districts = await this.locRepo.find({
       where: { parent: { id: city.id }, level: 'District' as any },
       order: { name: 'ASC' },
     });
 
-    // 3) Cho mỗi quận lấy N căn hộ đã publish, mới nhất
-    const sections = [];
-    for (const district of districts) {
-      const apartments = await this.repo.find({
-        where: { location: { id: district.id }, status: 'published' },
-        order: { createdAt: 'DESC' },
-        take: limitPerDistrict,
-      });
-      if (apartments.length) {
-        sections.push({
-          district: { id: district.id, name: district.name, slug: district.slug },
-          apartments,
-        });
-      }
+    if (!districts.length) {
+      return {
+        city: { id: city.id, name: city.name, slug: city.slug, level: city.level },
+        sections: [],
+      };
     }
 
+    const districtIds = districts.map(d => d.id);
+
+    // 3) Toàn bộ apartment published thuộc các quận đó (FULL entity)
+    const rawApts = await this.repo.createQueryBuilder('a')
+      .where('a.status = :st', { st: 'published' })
+      .andWhere('a.location_id IN (:...ids)', { ids: districtIds })
+      .orderBy('a.created_at', 'DESC')
+      .getMany();
+
+    if (!rawApts.length) {
+      return {
+        city: { id: city.id, name: city.name, slug: city.slug, level: city.level },
+        sections: [],
+      };
+    }
+
+    // 4) Group theo locationId (không join)
+    const byDistrict = new Map<number, Apartment[]>();
+    for (const a of rawApts) {
+      const lid = (a as any).locationId as number; // đảm bảo entity có field locationId
+      if (!byDistrict.has(lid)) byDistrict.set(lid, []);
+      byDistrict.get(lid)!.push(a);
+    }
+
+    // 5) Map yêu thích (1 query tổng)
+    const allIds = rawApts.map(a => a.id);
+    const favSet = await this.getFavIdSet(currentUserId, allIds);
+
+    // 6) Build sections (full apartment + favorited)
+    const sections = districts
+      .map(d => {
+        const arr = (byDistrict.get(d.id) || []).slice(0, limitPerDistrict);
+        const apartments: ApartmentWithFav[] = arr.map(a => ({
+          ...(a as Apartment),
+          favorited: favSet.has(a.id),
+        }));
+        return {
+          district: { id: d.id, name: d.name, slug: d.slug, level: d.level },
+          apartments,
+        };
+      })
+      .filter(s => s.apartments.length > 0);
+
     return {
-      city: { id: city.id, name: city.name, slug: city.slug },
+      city: { id: city.id, name: city.name, slug: city.slug, level: city.level },
       sections,
     };
   }
+  
 
-  async findOne(id: number) {
-    const item = await this.repo.findOne({
-      where: { id },
-      relations: { location: { parent: true } },
-    });
-    if (!item) throw new NotFoundException('Apartment not found');
-    return item;
-  }
+  /** Chi tiết + cờ favorited (JOIN với favorite) */
+  async findOneByIdOrSlug(idOrSlug: number | string, currentUserId?: number) {
+    const qb = this.repo.createQueryBuilder('a');
+    
+    // Điều kiện tìm theo id hoặc slug
+    if (typeof idOrSlug === 'number') {
+      qb.where('a.id = :id', { id: idOrSlug });
+    } else {
+      qb.where('a.slug = :slug', { slug: String(idOrSlug) });
+    }
 
-  async findBySlug(slug: string) {
-    const item = await this.repo.findOne({
-      where: { slug },
-      relations: { location: { parent: true } },
-    });
-    if (!item) throw new NotFoundException('Apartment not found');
-    return item;
+    const apt = await qb.getOne();
+    if (!apt) throw new NotFoundException('Apartment không tồn tại');
+
+    // Lấy cờ favorited
+    const favSet = await this.getFavIdSet(currentUserId, [apt.id]);
+    const favorited = favSet.has(apt.id);
+
+    // Nạp thông tin location dựa theo locationId để FE hiển thị khu vực khi update
+    let location: Location | null = null;
+    if ((apt as any).locationId) {
+      location = await this.locRepo.findOne({ where: { id: (apt as any).locationId } });
+    }
+
+    return { ...apt, favorited, location: location || undefined } as any;
   }
 
   async update(id: number, dto: UpdateApartmentDto) {
-    const current = await this.findOne(id);
+    const apt = await this.repo.findOne({ where: { id } });
+    if (!apt) throw new NotFoundException('Apartment không tồn tại');
 
-    const nextSlug = dto.slug?.trim() ?? current.slug;
-    if (nextSlug !== current.slug) await this.assertSlugUnique(nextSlug, id);
+    const nextLocationId = dto.locationId ?? apt.locationId;
+    const nextBuildingId = dto.buildingId === undefined ? apt.buildingId : dto.buildingId;
+    await this.assertRefs(nextLocationId, nextBuildingId ?? null);
 
-    if (dto.locationId != null) {
-      current.location = await this.ensureLocation(dto.locationId);
+    let slug = apt.slug;
+    if (dto.slug || dto.title) slug = await this.ensureUniqueSlug(dto.slug || dto.title || apt.title);
+
+    // xử lý images theo strategy
+    let images = apt.images;
+    if (dto.images) {
+      images = [...new Set(dto.images.filter(Boolean))];
     }
 
-    // base fields
-    current.title = dto.title ?? current.title;
-    current.slug = nextSlug;
-    if (dto.excerpt !== undefined) current.excerpt = dto.excerpt;
-    current.description = dto.description ?? current.description;
-    current.streetAddress = dto.streetAddress ?? current.streetAddress;
-
-    // numeric/decimal as string
-    if (dto.lat != null) current.lat = dto.lat;
-    if (dto.lng != null) current.lng = dto.lng;
-    if (dto.areaM2 != null) current.areaM2 = dto.areaM2;
-    if (dto.rentPrice != null) current.rentPrice = dto.rentPrice;
-
-    // ints / enums
-    if (dto.bedrooms != null) current.bedrooms = dto.bedrooms;
-    if (dto.bathrooms != null) current.bathrooms = dto.bathrooms;
-    if (dto.currency != null) current.currency = dto.currency;
-    if (dto.status != null) current.status = dto.status;
-
-    // images
-    if (dto.coverImageUrl !== undefined) current.coverImageUrl = dto.coverImageUrl;
-
-    // fees
-    if (dto.electricityPricePerKwh !== undefined) current.electricityPricePerKwh = dto.electricityPricePerKwh;
-    if (dto.waterPricePerM3 !== undefined) current.waterPricePerM3 = dto.waterPricePerM3;
-    if (dto.internetPricePerRoom !== undefined) current.internetPricePerRoom = dto.internetPricePerRoom;
-    if (dto.commonServiceFeePerPerson !== undefined) current.commonServiceFeePerPerson = dto.commonServiceFeePerPerson;
-
-    // furniture
-    if (dto.hasAirConditioner !== undefined) current.hasAirConditioner = dto.hasAirConditioner;
-    if (dto.hasWaterHeater !== undefined) current.hasWaterHeater = dto.hasWaterHeater;
-    if (dto.hasKitchenCabinet !== undefined) current.hasKitchenCabinet = dto.hasKitchenCabinet;
-    if (dto.hasWashingMachine !== undefined) current.hasWashingMachine = dto.hasWashingMachine;
-    if (dto.hasWardrobe !== undefined) current.hasWardrobe = dto.hasWardrobe;
-
-    // facilities
-    if (dto.hasPrivateBathroom !== undefined) current.hasPrivateBathroom = dto.hasPrivateBathroom;
-    if (dto.hasMezzanine !== undefined) current.hasMezzanine = dto.hasMezzanine;
-    if (dto.noOwnerLiving !== undefined) current.noOwnerLiving = dto.noOwnerLiving;
-    if (dto.flexibleHours !== undefined) current.flexibleHours = dto.flexibleHours;
-
-    return this.repo.save(current);
+    Object.assign(apt, { ...dto, slug, images });
+    return this.repo.save(apt);
   }
 
   async remove(id: number) {
-    const existed = await this.repo.findOne({ where: { id } });
-    if (!existed) throw new NotFoundException('Apartment not found');
+    const ok = await this.repo.findOne({ where: { id } });
+    if (!ok) throw new NotFoundException('Apartment không tồn tại');
     await this.repo.delete(id);
     return { success: true };
   }

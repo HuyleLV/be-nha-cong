@@ -28,19 +28,7 @@ import {
     email: string;
   
     @Column({ type: 'text', nullable: true })
-    note?: string;
-  
-    /** Chỉ cho landlord */
-    @Column({ type: 'int', nullable: true })
-    propertyCount?: number;
-  
-    /** Chỉ cho customer */
-    @Column({ type: 'int', nullable: true })
-    budget?: number;
-  
-    /** Chỉ cho operator */
-    @Column({ length: 200, nullable: true })
-    companyName?: string;
+    need?: string;
   
     @CreateDateColumn()
     createdAt: Date;

@@ -2,6 +2,7 @@ import { Body, Controller, Post, Get, Req, UseGuards,  } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { RegisterDto } from './dto/register.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -17,8 +18,13 @@ export class AuthController {
     @Post('login')
     async login(@Body() dto: LoginDto) {
         const user = await this.authService.validateUser(dto.email, dto.password_hash);
-        if (!user) throw new Error('Invalid credentials'); // bạn có thể throw UnauthorizedException
         return this.authService.login(user);
+    }
+
+    @Post('register')
+    async register(@Body() dto: RegisterDto) {
+      const user = await this.authService.register(dto);
+      return { message: 'Đăng ký thành công!', user };
     }
 
     // Route chuyên cho admin (bắt buộc role admin)

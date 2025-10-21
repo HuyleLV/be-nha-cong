@@ -18,27 +18,6 @@ import {
     email: string;
   
     @IsOptional() @IsString()
-    note?: string;
-  
-    /* Landlord: propertyCount là số nguyên >= 1 */
-    @ValidateIf(o => o.role === 'landlord')
-    @Type(() => Number)              // <-- ép chuỗi sang number
-    @Transform(({ value }) => value === '' ? undefined : value) // trống -> undefined để không lỗi
-    @IsInt()
-    @Min(1)
-    propertyCount?: number;
-  
-    /* Customer: budget là số nguyên >= 0 */
-    @ValidateIf(o => o.role === 'customer')
-    @Type(() => Number)
-    @Transform(({ value }) => value === '' ? undefined : value)
-    @IsInt()
-    @Min(0)
-    budget?: number;
-  
-    /* Operator: companyName bắt buộc */
-    @ValidateIf(o => o.role === 'operator')
-    @IsString() @MaxLength(200) @IsNotEmpty()
-    companyName?: string;
+    need?: string;
   }
   

@@ -1,13 +1,22 @@
-// src/apartments/apartments.module.ts
+// src/modules/apartments/apartments.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Apartment } from './entities/apartment.entity';
-import { Location } from '../locations/entities/locations.entity';
 import { ApartmentsService } from './apartments.service';
 import { ApartmentsController } from './apartments.controller';
+import { Apartment } from './entities/apartment.entity';
+import { Location } from '../locations/entities/locations.entity';
+import { Building } from '../building/entities/building.entity';
+import { Favorite } from '../favorites/entities/favorite.entity'; // <-- import entity Favorite
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Apartment, Location])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Apartment,
+      Location,
+      Building,
+      Favorite,
+    ]),
+  ],
   controllers: [ApartmentsController],
   providers: [ApartmentsService],
   exports: [ApartmentsService],
