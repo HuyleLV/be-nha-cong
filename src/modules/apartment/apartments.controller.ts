@@ -5,6 +5,7 @@ import { CreateApartmentDto } from './dto/create-apartment.dto';
 import { UpdateApartmentDto } from './dto/update-apartment.dto';
 import { QueryApartmentDto } from './dto/query-apartment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
 @ApiTags('Apartments')
 @Controller('apartments')
@@ -16,7 +17,7 @@ export class ApartmentsController {
     return this.service.findAll(q);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('home-sections')
   async getHomeSections(
     @Query('citySlug') citySlug: string,
