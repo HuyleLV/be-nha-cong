@@ -33,7 +33,7 @@ export class ApartmentsController {
     return this.service.create(dto /*, req.user?.id */);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':idOrSlug')
   findOne(@Param('idOrSlug') idOrSlug: string, @Req() req: any) {
     const key = /^\d+$/.test(idOrSlug) ? Number(idOrSlug) : idOrSlug;
