@@ -59,8 +59,11 @@ export class ApartmentsService {
     await this.assertRefs(dto.locationId, dto.buildingId ?? null);
     const slug = await this.ensureUniqueSlug(dto.slug || dto.title);
 
-    // chuẩn hoá images
-    const images = Array.isArray(dto.images) ? [...new Set(dto.images.filter(Boolean))] : undefined;
+    // chuẩn hoá images và tách cover ra riêng
+    const cover = dto.coverImageUrl?.trim() || undefined;
+    const images = Array.isArray(dto.images)
+      ? [...new Set(dto.images.filter(Boolean))].filter((u) => u !== cover)
+      : undefined;
 
     const entity = this.repo.create({
       ...dto,
@@ -230,7 +233,7 @@ export class ApartmentsService {
   }
 
   async update(id: number, dto: UpdateApartmentDto) {
-    const apt = await this.repo.findOne({ where: { id } });
+  const apt = await this.repo.findOne({ where: { id } });
     if (!apt) throw new NotFoundException('Apartment không tồn tại');
 
     const nextLocationId = dto.locationId ?? apt.locationId;
@@ -240,13 +243,17 @@ export class ApartmentsService {
     let slug = apt.slug;
     if (dto.slug || dto.title) slug = await this.ensureUniqueSlug(dto.slug || dto.title || apt.title);
 
-    // xử lý images theo strategy
+    // xử lý images theo strategy + đảm bảo tách cover khỏi images
+    const nextCover = dto.coverImageUrl !== undefined ? (dto.coverImageUrl?.trim() || null) : apt.coverImageUrl;
     let images = apt.images;
     if (dto.images) {
       images = [...new Set(dto.images.filter(Boolean))];
     }
+    if (Array.isArray(images) && nextCover) {
+      images = images.filter((u) => u !== nextCover);
+    }
 
-    Object.assign(apt, { ...dto, slug, images });
+    Object.assign(apt, { ...dto, slug, images, coverImageUrl: nextCover as any });
     return this.repo.save(apt);
   }
 
