@@ -20,6 +20,20 @@ export const ensureUploadDirs = () => {
   return dir;
 };
 
+// ====== VIDEO CONFIG ======
+const VIDEO_MIMES = [
+  'video/mp4',
+  'video/webm',
+  'video/ogg',
+  'video/quicktime', // .mov
+];
+
+export const ensureVideoUploadDirs = () => {
+  const dir = join(process.cwd(), 'uploads', 'videos');
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+};
+
 export const multerImageOptions = {
   storage: diskStorage({
     destination: (_req, _file, cb) => {
@@ -41,5 +55,29 @@ export const multerImageOptions = {
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB
     files: 10,                 // tối đa 10 file/lần
+  },
+};
+
+export const multerVideoOptions = {
+  storage: diskStorage({
+    destination: (_req, _file, cb) => {
+      const dir = ensureVideoUploadDirs();
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const safeExt = extname(file.originalname).toLowerCase(); // .mp4/.webm...
+      const filename = `${uuid()}${safeExt}`;
+      cb(null, filename);
+    },
+  }),
+  fileFilter: (req: Request, file: Express.Multer.File, cb: Function) => {
+    if (!VIDEO_MIMES.includes(file.mimetype)) {
+      return cb(new BadRequestException('Chỉ cho phép video: mp4, webm, ogg, mov'), false);
+    }
+    cb(null, true);
+  },
+  limits: {
+    fileSize: 25 * 1024 * 1024, // 25MB
+    files: 1,
   },
 };

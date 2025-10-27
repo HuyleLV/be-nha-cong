@@ -18,12 +18,13 @@ import { OwnershipsModule } from './modules/ownership/ownership.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { View } from 'typeorm';
 import { ViewingsModule } from './modules/viewings/viewings.module';
+import mailConfig from './config/mail.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig],
+      load: [appConfig, databaseConfig, mailConfig],
       envFilePath: ['.env'],
     }),
     TypeOrmModule.forRootAsync({
@@ -44,6 +45,10 @@ import { ViewingsModule } from './modules/viewings/viewings.module';
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads', 'images'),
       serveRoot: '/static/images',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads', 'videos'),
+      serveRoot: '/static/videos',
     }),
     UploadModule,
     UsersModule,

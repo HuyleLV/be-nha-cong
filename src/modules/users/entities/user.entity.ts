@@ -48,6 +48,18 @@ export class User {
   @Column({ length: 255, nullable: true })
   address?: string;
 
+  /** Xác thực email */
+  @Column({ type: 'boolean', default: false })
+  emailVerified: boolean;
+
+  /** Mã OTP xác thực email (tạm thời) */
+  @Column({ type: 'varchar', length: 12, nullable: true })
+  emailVerificationCode?: string | null;
+
+  /** Hạn dùng của OTP xác thực */
+  @Column({ type: 'datetime', nullable: true })
+  emailVerificationExpires?: Date | null;
+
   // ====== Referral / Affiliate ======
   @Index({ unique: true })
   @Column({ length: 50, unique: true, nullable: true })
@@ -61,6 +73,14 @@ export class User {
 
   @Column({ type: 'enum', enum: UserRole, nullable: true })
   role: UserRole;
+
+  /** OAuth provider info */
+  @Column({ length: 50, nullable: true, default: 'local' })
+  provider?: string | null; // 'local' | 'google' | 'facebook' ...
+
+  @Index()
+  @Column({ length: 255, nullable: true })
+  providerId?: string | null; // e.g., Google sub
 
   @CreateDateColumn()
   createdAt: Date;

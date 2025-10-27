@@ -46,6 +46,12 @@ export class ApartmentsController {
     return this.service.update(Number(id), dto);
   }
 
+  // Cập nhật/chỉ định video cho apartment (đặt lên đầu danh sách images)
+  @Patch(':id/video')
+  updateVideo(@Param('id') id: string, @Body() dto: { videoUrl?: string | null }) {
+    return this.service.updateVideo(Number(id), dto?.videoUrl);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.service.remove(Number(id));

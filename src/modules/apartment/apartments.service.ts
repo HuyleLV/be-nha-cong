@@ -263,4 +263,42 @@ export class ApartmentsService {
     await this.repo.delete(id);
     return { success: true };
   }
+
+  /** Cập nhật URL video (đặt video ở đầu danh sách images). Nếu videoUrl trống -> xoá mọi video-like URL khỏi images */
+  async updateVideo(id: number, videoUrl?: string | null) {
+    const apt = await this.repo.findOne({ where: { id } });
+    if (!apt) throw new NotFoundException('Apartment không tồn tại');
+
+    const isVideoUrl = (u?: string | null) => {
+      if (!u) return false;
+      const s = String(u).toLowerCase();
+      return (
+        s.includes('/static/videos/') ||
+        s.endsWith('.mp4') || s.endsWith('.webm') || s.endsWith('.ogg') || s.endsWith('.mov') ||
+        s.includes('youtube.com') || s.includes('youtu.be') || s.includes('vimeo.com')
+      );
+    };
+
+    const clean = (arr?: string[] | null) => Array.isArray(arr) ? arr.filter(Boolean) : [] as string[];
+    let images = clean(apt.images);
+    // Remove all existing video-like URLs first
+    images = images.filter((u) => !isVideoUrl(u));
+
+    const v = (videoUrl || '').trim();
+    if (v) {
+      // Put video first, then others (dedupe)
+      const set = new Set([v, ...images]);
+      images = Array.from(set);
+    }
+
+    // Ensure cover is not duplicated in images
+    const cover = apt.coverImageUrl?.trim() || undefined;
+    if (cover) {
+      images = images.filter((u) => u !== cover);
+    }
+
+    Object.assign(apt, { images });
+    await this.repo.save(apt);
+    return { message: 'Video updated', images };
+  }
 }
