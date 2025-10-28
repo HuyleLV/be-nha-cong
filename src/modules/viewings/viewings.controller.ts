@@ -35,6 +35,14 @@ export class ViewingsController {
     return this.svc.adminFindAll(q);
   }
 
+  /** Admin: get detail */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Get('admin/:id')
+  async adminGetOne(@Param('id') id: string) {
+    return this.svc.adminFindOne(Number(id));
+  }
+
   /** Admin: cập nhật trạng thái */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')

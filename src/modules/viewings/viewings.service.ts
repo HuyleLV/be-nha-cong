@@ -95,11 +95,14 @@ export class ViewingsService {
     const limit = q.limit ?? 20;
 
     const qb = this.repo.createQueryBuilder('v')
+      // join Apartment to allow filtering by buildingId
+      .leftJoin(Apartment, 'a', 'a.id = v.apartmentId')
       .orderBy('v.createdAt', 'DESC')
       .take(limit)
       .skip((page - 1) * limit);
 
     if (q.apartmentId) qb.andWhere('v.apartmentId = :aid', { aid: q.apartmentId });
+    if (q.buildingId) qb.andWhere('a.buildingId = :bid', { bid: q.buildingId });
     if (q.status) qb.andWhere('v.status = :st', { st: q.status });
     if (q.q) {
       qb.andWhere('(v.name ILIKE :kw OR v.email ILIKE :kw OR v.phone ILIKE :kw)', {
@@ -131,5 +134,11 @@ export class ViewingsService {
     if (!ok) throw new NotFoundException('Yêu cầu xem phòng không tồn tại');
     await this.repo.delete(id);
     return { success: true };
+  }
+
+  async adminFindOne(id: number) {
+    const v = await this.repo.findOne({ where: { id } });
+    if (!v) throw new NotFoundException('Yêu cầu xem phòng không tồn tại');
+    return v;
   }
 }

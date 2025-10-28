@@ -17,6 +17,12 @@ export class QueryViewingDto {
   @Transform(({ value }) => (value === undefined ? value : parseInt(value, 10)))
   @IsInt() 
   apartmentId?: number;
+
+  /** Optional: filter by buildingId (via apartment.buildingId) */
+  @IsOptional()
+  @Transform(({ value }) => (value === undefined ? value : parseInt(value, 10)))
+  @IsInt()
+  buildingId?: number;
   @IsOptional() @IsIn(['pending','confirmed','cancelled'])
   status?: 'pending' | 'confirmed' | 'cancelled';
 }
