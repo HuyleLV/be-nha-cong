@@ -19,12 +19,13 @@ import { FavoritesModule } from './modules/favorites/favorites.module';
 import { View } from 'typeorm';
 import { ViewingsModule } from './modules/viewings/viewings.module';
 import mailConfig from './config/mail.config';
+import zaloConfig from './config/zalo.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, mailConfig],
+      load: [appConfig, databaseConfig, mailConfig, zaloConfig],
       envFilePath: ['.env'],
     }),
     TypeOrmModule.forRootAsync({

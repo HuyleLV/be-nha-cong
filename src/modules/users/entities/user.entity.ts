@@ -60,6 +60,18 @@ export class User {
   @Column({ type: 'datetime', nullable: true })
   emailVerificationExpires?: Date | null;
 
+  /** Xác thực số điện thoại */
+  @Column({ type: 'boolean', default: false })
+  phoneVerified?: boolean;
+
+  /** Mã OTP xác thực số điện thoại */
+  @Column({ type: 'varchar', length: 12, nullable: true })
+  phoneVerificationCode?: string | null;
+
+  /** Hạn dùng của OTP xác thực số điện thoại */
+  @Column({ type: 'datetime', nullable: true })
+  phoneVerificationExpires?: Date | null;
+
   // ====== Referral / Affiliate ======
   @Index({ unique: true })
   @Column({ length: 50, unique: true, nullable: true })

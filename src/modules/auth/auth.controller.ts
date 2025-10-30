@@ -7,6 +7,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginGoogleDto } from './dto/login-google.dto';
 import { LoginGoogleCodeDto } from './dto/login-google-code.dto';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
+import { SendPhoneOtpDto, VerifyPhoneDto } from './dto';
 
 @Controller('auth')
 export class AuthController {
@@ -35,6 +36,18 @@ export class AuthController {
         async verifyEmail(@Body() dto: VerifyEmailDto) {
             return this.authService.verifyEmail(dto.email, dto.code);
         }
+
+    // Bắt đầu đăng ký bằng số điện thoại: tạo/ghi OTP và gửi qua Zalo/ZNS (nếu cấu hình), fallback log server
+    @Post('start-register-phone')
+    async startRegisterByPhone(@Body() dto: SendPhoneOtpDto) {
+        return this.authService.startRegisterByPhone(dto.phone);
+    }
+
+    // Xác minh OTP điện thoại; thành công sẽ trả về token đăng nhập
+    @Post('verify-phone')
+    async verifyPhone(@Body() dto: VerifyPhoneDto) {
+        return this.authService.verifyPhone(dto.phone, dto.code);
+    }
 
     // Đăng nhập bằng Google ID token
     @Post('login-google')

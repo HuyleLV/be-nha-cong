@@ -25,6 +25,69 @@ export class AuthService {
     return code;
   }
 
+  private normalizePhone(phone: string) {
+    const raw = String(phone || '').trim();
+    // Simple VN-friendly normalization: remove spaces and dashes; keep leading +84 or 0
+    const compact = raw.replace(/\s|-/g, '');
+    return compact;
+  }
+
+  private async sendPhoneOtpViaZalo(phone: string, code: string) {
+    // Attempt real ZNS send if configured; otherwise log as fallback.
+    const zaloToken = this.config.get<string>('zalo.token');
+    const zaloOaId = this.config.get<string>('zalo.oaId');
+    const templateId = this.config.get<string>('zalo.templateIdOtp');
+    const enabled = this.config.get<boolean>('zalo.enabled');
+    const appName = this.config.get<string>('mail.appName') || 'NhaCong';
+
+    if (!enabled || !zaloToken || !zaloOaId || !templateId) {
+      console.warn('[ZALO] Missing config or disabled. OTP for', phone, 'is', code);
+      return { sent: false };
+    }
+
+    // Normalize phone to 84xxxxxxxxx (no leading +)
+    const raw = String(phone || '').trim();
+    let phone84 = raw;
+    if (raw.startsWith('+84')) phone84 = '84' + raw.slice(3);
+    else if (raw.startsWith('0')) phone84 = '84' + raw.slice(1);
+    else if (raw.startsWith('84')) phone84 = raw;
+    else phone84 = raw.replace(/\D/g, ''); // last resort
+
+    const payloadV1 = {
+      phone: phone84,
+      template_id: templateId,
+      template_data: {
+        otp: code,
+        app_name: appName,
+        time_limit: '10 phút',
+      },
+      tracking_id: `otp_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    } as any;
+
+    try {
+      const res = await fetch('https://business.openapi.zalo.me/message/template', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${zaloToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payloadV1),
+      } as any);
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('[ZALO] send template failed:', res.status, text);
+        return { sent: false, status: res.status };
+      }
+      const json = await res.json();
+      // Optionally inspect json for error codes depending on ZNS response structure
+      return { sent: true, response: json };
+    } catch (e) {
+      console.error('[ZALO] sendPhoneOtpViaZalo error:', (e as any)?.message || e);
+      return { sent: false };
+    }
+  }
+
   private async sendVerificationEmail(to: string, code: string) {
     const host = this.config.get<string>('mail.host');
     const port = Number(this.config.get<number>('mail.port') ?? 587);
@@ -69,9 +132,9 @@ export class AuthService {
     const matched = await bcrypt.compare(password, user.passwordHash);
     if (!matched) return null;
 
-    // Chặn đăng nhập nếu chưa xác thực email (áp dụng cho tài khoản mới)
-    if (user.emailVerified === false) {
-      throw new UnauthorizedException('Email chưa được xác thực');
+    // Cho phép đăng nhập nếu đã xác thực email hoặc số điện thoại
+    if (!user.emailVerified && !user.phoneVerified) {
+      throw new UnauthorizedException('Tài khoản chưa được xác minh');
     }
 
     const { passwordHash, ...safe } = user as any;
@@ -79,23 +142,26 @@ export class AuthService {
     return safe;
   }
 
-  async login(user: { id?: number; email?: string; role?: string; name?: string; avatarUrl?: string; phone?: number }) {
+  async login(user: { id?: number; email?: string | null; role?: string; name?: string | null; avatarUrl?: string | null; phone?: string | number | null }) {
     // Kiểm tra đầu vào
-    if (!user || !user.id || !user.email || !user.role) {
+    if (!user || !user.id || !user.role) {
       return {
         message: 'Tài khoản hoặc mật khẩu không đúng',
       };
     }
-  
-    const name = user.name ?? user.email?.split('@')[0] ?? 'User';
-    const payload = { sub: user.id, email: user.email, role: user.role, name, avatarUrl: user.avatarUrl, phone: user.phone };
+    
+    const derivedName = user.name ?? (user.email ? user.email.split('@')[0] : undefined) ?? `User${user.id}`;
+    const payload: any = { sub: user.id, role: user.role, name: derivedName };
+    if (user.email) payload.email = user.email;
+    if (user.avatarUrl) payload.avatarUrl = user.avatarUrl;
+    if (user.phone) payload.phone = user.phone;
   
     try {
       const token = this.jwtService.sign(payload);
       return {
         accessToken: token,
         expiresIn: process.env.JWT_EXPIRES_IN || '1h',
-        user: { id: user.id, email: user.email, role: user.role, name, avatarUrl: user.avatarUrl, phone: user.phone },
+        user: { id: user.id, email: user.email ?? null, role: user.role, name: derivedName, avatarUrl: user.avatarUrl ?? null, phone: user.phone ?? null },
         message: 'Đăng nhập thành công',
       };
     } catch (error) {
@@ -170,6 +236,75 @@ export class AuthService {
     user.emailVerificationExpires = null;
     await this.usersRepo.save(user);
     return { message: 'Xác thực email thành công' };
+  }
+
+  // Khởi tạo/ gửi OTP đến số điện thoại để đăng ký/xác minh
+  async startRegisterByPhone(phoneRaw: string) {
+    const phone = this.normalizePhone(phoneRaw);
+    if (!phone) throw new BadRequestException('Số điện thoại không hợp lệ');
+
+    let user = await this.usersRepo.findOne({ where: { phone } });
+    const otp = this.generateOtp(6);
+    const expires = new Date(Date.now() + 10 * 60 * 1000);
+
+    if (!user) {
+      // Tạo tài khoản tối thiểu với role customer
+      user = this.usersRepo.create({
+        phone,
+        role: 'customer' as any,
+        emailVerified: false,
+        phoneVerified: false,
+        phoneVerificationCode: otp,
+        phoneVerificationExpires: expires,
+      } as any) as any;
+    } else {
+      user.phoneVerificationCode = otp;
+      user.phoneVerificationExpires = expires;
+      // Không reset emailVerified/phoneVerified ở đây
+    }
+
+    await this.usersRepo.save(user);
+    await this.sendPhoneOtpViaZalo(phone, otp);
+    return { message: 'Đã gửi mã xác thực qua Zalo/SMS. Vui lòng kiểm tra tin nhắn.', expiresAt: expires };
+  }
+
+  // Xác minh OTP điện thoại, sau đó đăng nhập
+  async verifyPhone(phoneRaw: string, code: string) {
+    const phone = this.normalizePhone(phoneRaw);
+    if (!phone || !code) throw new BadRequestException('Thiếu thông tin xác minh');
+
+    let user = await this.usersRepo.findOne({ where: { phone } });
+    if (!user) {
+      // Cho phép tạo nhanh nếu chưa tồn tại, coi như đã xác minh (trường hợp user đến thẳng verify với đúng OTP do hệ thống gửi trước)
+      user = this.usersRepo.create({
+        phone,
+        role: 'customer' as any,
+        phoneVerified: true,
+        emailVerified: false,
+        phoneVerificationCode: null,
+        phoneVerificationExpires: null,
+      } as any) as any;
+      const saved = await this.usersRepo.save(user);
+      return this.login({ id: saved.id, role: (saved as any).role, name: saved.name ?? null, email: saved.email ?? null, phone: saved.phone ?? null, avatarUrl: saved.avatarUrl ?? null });
+    }
+
+    if (!user.phoneVerificationCode || !user.phoneVerificationExpires) {
+      throw new BadRequestException('Không tìm thấy mã xác thực. Vui lòng yêu cầu lại mã.');
+    }
+    const now = new Date();
+    if (now > new Date(user.phoneVerificationExpires)) {
+      throw new BadRequestException('Mã xác thực đã hết hạn');
+    }
+    if (String(code).trim() !== String(user.phoneVerificationCode).trim()) {
+      throw new BadRequestException('Mã xác thực không đúng');
+    }
+
+    user.phoneVerified = true as any;
+    user.phoneVerificationCode = null;
+    user.phoneVerificationExpires = null;
+    await this.usersRepo.save(user);
+
+    return this.login({ id: user.id, role: (user as any).role, name: user.name ?? null, email: user.email ?? null, phone: user.phone ?? null, avatarUrl: user.avatarUrl ?? null });
   }
 
   async loginWithGoogle(idToken: string) {

@@ -5,9 +5,12 @@ import { ok } from '../../common/utils/response';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
-@Controller('users')
-@UseGuards(JwtAuthGuard)
+@Controller('admin/users')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
