@@ -1,13 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength, IsIn } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, IsIn } from 'class-validator';
 import { UserRole } from '../entities/user.entity';
 
 export class CreateUserDto {
-  // @ApiProperty()
-  // @IsString()
-  // @IsNotEmpty()
-  // @MaxLength(120)
-  // name: string;
+  @ApiProperty({ required: false, description: 'Họ tên (tuỳ chọn)', maxLength: 120 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  name?: string;
 
   @ApiProperty()
   @IsEmail()
@@ -18,6 +18,12 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   password?: string;
+
+  @ApiProperty({ required: false, description: 'Số điện thoại (tuỳ chọn)', maxLength: 20 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  phone?: string;
 
   @ApiProperty({ enum: ['customer', 'host', 'admin'], default: 'customer' })
   @IsOptional()

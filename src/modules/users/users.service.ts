@@ -46,7 +46,9 @@ export class UsersService {
       : undefined;
   
     const entity = this.repo.create({
+      name: dto.name,
       email: dto.email,
+      phone: dto.phone,
       passwordHash,
       role: dto.role
     });
@@ -66,9 +68,11 @@ export class UsersService {
     }
   
     Object.assign(user, {
+      name: dto.name ?? user.name,
       email: dto.email ?? user.email,
+      phone: dto.phone ?? user.phone,
       passwordHash,
-      role: dto.role
+      role: dto.role ?? user.role
     });
   
     return this.repo.save(user);
