@@ -22,7 +22,7 @@ export class AuthController {
     // Đăng nhập chung (trả token)
     @Post('login')
     async login(@Body() dto: LoginDto) {
-        const user = await this.authService.validateUser(dto.email, dto.password_hash);
+        const user = await this.authService.validateUser(dto.identifier, dto.password_hash);
         return this.authService.login(user);
     }
 
@@ -74,6 +74,6 @@ export class AuthController {
     // Route chuyên cho admin (bắt buộc role admin)
     @Post('login-admin')
     async loginAdmin(@Body() dto: LoginDto) {
-        return this.authService.adminLogin(dto.email, dto.password_hash);
+        return this.authService.adminLogin(dto.identifier, dto.password_hash);
     }
 }

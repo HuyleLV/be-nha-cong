@@ -126,8 +126,11 @@ export class AuthService {
     });
   }
 
-  async validateUser(email: string, password: string) {
-    const user = await this.usersRepo.findOneBy({ email });
+  async validateUser(identifier: string, password: string) {
+    // Allow login by email or phone
+    const isEmail = /@/.test(String(identifier || ''));
+    const where = isEmail ? { email: identifier } : { phone: String(identifier).trim() } as any;
+    const user = await this.usersRepo.findOne({ where });
     if (!user || !user.passwordHash) return null;
     const matched = await bcrypt.compare(password, user.passwordHash);
     if (!matched) return null;
@@ -201,8 +204,10 @@ export class AuthService {
     return { message: 'Đã gửi mã xác thực tới email. Vui lòng kiểm tra hộp thư và nhập OTP để hoàn tất đăng ký.' };
   }
   
-  async adminLogin(email: string, password: string) {
-    const u = await this.usersRepo.findOneBy({ email });
+  async adminLogin(identifier: string, password: string) {
+    const isEmail = /@/.test(String(identifier || ''));
+    const where = isEmail ? { email: identifier } : { phone: String(identifier).trim() } as any;
+    const u = await this.usersRepo.findOne({ where });
     if (!u || !(await bcrypt.compare(password, u.passwordHash ?? '')))
       throw new BadRequestException('Tài khoản hoặc mật khẩu không đúng');
     if (u.role !== 'admin')
@@ -211,7 +216,7 @@ export class AuthService {
     const { passwordHash, ...safe } = u as any;
     const name = safe.name ?? safe.username ?? safe.email?.split('@')[0] ?? 'Admin';
   
-    return this.login({ id: safe.id, email: safe.email, role: safe.role, name });
+    return this.login({ id: safe.id, email: safe.email, role: safe.role, name, phone: (safe as any).phone });
   }
 
   async verifyEmail(email: string, code: string) {

@@ -1,8 +1,9 @@
-import { IsEmail, IsString } from 'class-validator';
+import { IsString } from 'class-validator';
 
 export class LoginDto {
-  @IsEmail()
-  email: string;
+  // Cho phép nhập email hoặc số điện thoại
+  @IsString()
+  identifier: string;
 
   @IsString()
   password_hash: string;
