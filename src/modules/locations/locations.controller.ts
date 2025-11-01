@@ -14,14 +14,14 @@ export class LocationsController {
     return this.service.findAll(q);
   }
 
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
-  }
-
   @Get('by-slug/:slug')
   findBySlug(@Param('slug') slug: string) {
     return this.service.findBySlug(slug);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findOne(id);
   }
 
   @Post()
