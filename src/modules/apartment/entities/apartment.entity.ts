@@ -108,6 +108,10 @@ export class Apartment {
   @Column({ name: 'flexible_hours', type: 'bool', default: false })
   flexibleHours: boolean;
 
+  /* ========== Verification ========== */
+  @Column({ name: 'is_verified', type: 'bool', default: false })
+  isVerified: boolean;
+
   /* ========== Meta ========== */
   @Column({ name: 'created_by', type: 'bigint', nullable: true })
   createdById: number;

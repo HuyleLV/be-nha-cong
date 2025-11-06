@@ -106,4 +106,9 @@ export class CreateApartmentDto {
 
   @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   flexibleHours?: boolean;
+
+  // ===== Verification =====
+  @ApiProperty({ required: false, default: false })
+  @IsOptional() @IsBoolean()
+  isVerified?: boolean;
 }

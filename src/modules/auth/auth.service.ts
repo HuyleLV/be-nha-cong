@@ -8,6 +8,7 @@ import { RegisterDto } from './dto/register.dto';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
+import { ZaloService } from '../zalo/zalo.service';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class AuthService {
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly zalo: ZaloService,
   ) {}
 
   private generateOtp(length = 6) {
@@ -33,58 +35,29 @@ export class AuthService {
   }
 
   private async sendPhoneOtpViaZalo(phone: string, code: string) {
-    // Attempt real ZNS send if configured; otherwise log as fallback.
-    const zaloToken = this.config.get<string>('zalo.token');
-    const zaloOaId = this.config.get<string>('zalo.oaId');
-    const templateId = this.config.get<string>('zalo.templateIdOtp');
-    const enabled = this.config.get<boolean>('zalo.enabled');
-    const appName = this.config.get<string>('mail.appName') || 'NhaCong';
-
-    if (!enabled || !zaloToken || !zaloOaId || !templateId) {
-      console.warn('[ZALO] Missing config or disabled. OTP for', phone, 'is', code);
-      return { sent: false };
+    const templateId = this.config.get<string>('ZNS_TEMPLATE_ID_OTP');
+    const trackingId = `otp_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    if (!templateId) {
+      console.warn('[ZALO] Missing ZNS_TEMPLATE_ID_OTP in env; skip sending OTP');
+      console.info('[ZALO][SKIP]', { phone, code, trackingId });
+      return { sent: false } as any;
     }
-
-    // Normalize phone to 84xxxxxxxxx (no leading +)
-    const raw = String(phone || '').trim();
-    let phone84 = raw;
-    if (raw.startsWith('+84')) phone84 = '84' + raw.slice(3);
-    else if (raw.startsWith('0')) phone84 = '84' + raw.slice(1);
-    else if (raw.startsWith('84')) phone84 = raw;
-    else phone84 = raw.replace(/\D/g, ''); // last resort
-
-    const payloadV1 = {
-      phone: phone84,
-      template_id: templateId,
-      template_data: {
-        otp: code,
-        app_name: appName,
-        time_limit: '10 phút',
-      },
-      tracking_id: `otp_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-    } as any;
-
     try {
-      const res = await fetch('https://business.openapi.zalo.me/message/template', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${zaloToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payloadV1),
-      } as any);
-
-      if (!res.ok) {
-        const text = await res.text();
-        console.error('[ZALO] send template failed:', res.status, text);
-        return { sent: false, status: res.status };
+      const result = await this.zalo.sendTemplateHashphone({
+        phone,
+        templateId,
+        templateData: { otp: code },
+        trackingId,
+      });
+      if (result?.sent) {
+        console.info('[ZALO][SENT]', { phone, trackingId });
+      } else {
+        console.warn('[ZALO][NOT_SENT]', { phone, code, trackingId, status: result?.status });
       }
-      const json = await res.json();
-      // Optionally inspect json for error codes depending on ZNS response structure
-      return { sent: true, response: json };
+      return result;
     } catch (e) {
-      console.error('[ZALO] sendPhoneOtpViaZalo error:', (e as any)?.message || e);
-      return { sent: false };
+      console.error('[ZALO][ERROR] sendPhoneOtpViaZalo', { phone, code, trackingId, error: (e as any)?.message || e });
+      return { sent: false } as any;
     }
   }
 
@@ -135,10 +108,8 @@ export class AuthService {
     const matched = await bcrypt.compare(password, user.passwordHash);
     if (!matched) return null;
 
-    // Cho phép đăng nhập nếu đã xác thực email hoặc số điện thoại
-    if (!user.emailVerified && !user.phoneVerified) {
-      throw new UnauthorizedException('Tài khoản chưa được xác minh');
-    }
+    // Previously we required either email or phone verification before login.
+    // Removed that requirement so users who register with email/password can login immediately.
 
     const { passwordHash, ...safe } = user as any;
     
@@ -177,31 +148,27 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const existed = await this.usersRepo.findOne({ where: { email: dto.email } });
     if (existed) throw new BadRequestException('Email đã tồn tại trên hệ thống!');
-
+    // Create user and mark emailVerified true so that email verification step is skipped.
     const passwordHash = dto.password_hash ? await bcrypt.hash(dto.password_hash, 10) : undefined;
-
-    const otp = this.generateOtp(6);
-    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
-
     const user = this.usersRepo.create({
       name: dto.name,
       email: dto.email,
       passwordHash,
       phone: dto.phone ?? null,
       role: dto.role ?? 'customer',
-      emailVerified: false,
-      emailVerificationCode: otp,
-      emailVerificationExpires: expires,
+      emailVerified: true, // skip email verification
+      emailVerificationCode: null,
+      emailVerificationExpires: null,
     } as any);
 
-  const saved = (await this.usersRepo.save(user)) as unknown as User;
-    // Gửi email OTP (không throw để tránh lộ config), log nếu thiếu cấu hình
-    try {
-      await this.sendVerificationEmail(saved.email!, otp);
-    } catch (e) {
-      console.error('[MAILER] sendVerificationEmail failed:', (e as any)?.message || e);
+    const saved = (await this.usersRepo.save(user)) as unknown as User;
+
+    // If the user provided a password, auto-login and return token so frontend can log in immediately.
+    if (saved.passwordHash) {
+      return this.login({ id: saved.id, role: (saved as any).role, name: saved.name ?? null, email: saved.email ?? null, phone: saved.phone ?? null, avatarUrl: saved.avatarUrl ?? null });
     }
-    return { message: 'Đã gửi mã xác thực tới email. Vui lòng kiểm tra hộp thư và nhập OTP để hoàn tất đăng ký.' };
+
+    return { message: 'Đăng ký thành công' };
   }
   
   async adminLogin(identifier: string, password: string) {
@@ -249,6 +216,11 @@ export class AuthService {
     if (!phone) throw new BadRequestException('Số điện thoại không hợp lệ');
 
     let user = await this.usersRepo.findOne({ where: { phone } });
+    // If a user with this phone already exists and has a password (fully registered), don't throw 400.
+    // Instead return a friendly message so frontend can guide the user to login.
+    if (user && user.passwordHash) {
+      return { message: 'Số điện thoại này đã được đăng ký', alreadyRegistered: true } as any;
+    }
     const otp = this.generateOtp(6);
     const expires = new Date(Date.now() + 10 * 60 * 1000);
 

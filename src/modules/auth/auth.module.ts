@@ -9,12 +9,14 @@ import { User } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
+import { ZaloModule } from '../zalo/zalo.module';
 
 @Module({
   imports: [
     ConfigModule, // cần để lấy env trong useFactory
     TypeOrmModule.forFeature([User]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
+    ZaloModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
