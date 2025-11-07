@@ -4,7 +4,7 @@ import {
     Index
   } from 'typeorm';
   
-  export type ViewingStatus = 'pending' | 'confirmed' | 'cancelled';
+  export type ViewingStatus = 'pending' | 'confirmed' | 'cancelled' | 'done';
   
   @Entity('viewings')
   @Index(['apartmentId', 'preferredAt'])

@@ -48,6 +48,9 @@ export class Apartment {
   @Column({ default: 0 })
   bathrooms: number;
 
+  @Column({ name: 'living_rooms', default: 0 })
+  livingRooms: number;
+
   @Column({ name: 'area_m2', type: 'numeric', precision: 7, scale: 2, nullable: true })
   areaM2?: string;
 
@@ -98,6 +101,27 @@ export class Apartment {
   /* ========== Amenities ========== */
   @Column({ name: 'has_private_bathroom', type: 'bool', default: false })
   hasPrivateBathroom: boolean;
+
+  @Column({ name: 'has_shared_bathroom', type: 'bool', default: false })
+  hasSharedBathroom: boolean;
+
+  @Column({ name: 'has_washing_machine_shared', type: 'bool', default: false })
+  hasWashingMachineShared: boolean;
+
+  @Column({ name: 'has_washing_machine_private', type: 'bool', default: false })
+  hasWashingMachinePrivate: boolean;
+
+  @Column({ name: 'has_desk', type: 'bool', default: false })
+  hasDesk: boolean;
+
+  @Column({ name: 'has_kitchen_table', type: 'bool', default: false })
+  hasKitchenTable: boolean;
+
+  @Column({ name: 'has_range_hood', type: 'bool', default: false })
+  hasRangeHood: boolean;
+
+  @Column({ name: 'has_fridge', type: 'bool', default: false })
+  hasFridge: boolean;
 
   @Column({ name: 'has_mezzanine', type: 'bool', default: false })
   hasMezzanine: boolean;

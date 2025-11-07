@@ -41,6 +41,9 @@ export class CreateApartmentDto {
   @ApiProperty({ default: 0 }) @IsOptional() @IsInt() @Min(0)
   bathrooms?: number;
 
+  @ApiProperty({ default: 0 }) @IsOptional() @IsInt() @Min(0)
+  livingRooms?: number;
+
   @ApiProperty({ required: false, description: 'numeric string, ví dụ "25.5"' })
   @IsOptional() @IsString()
   areaM2?: string;
@@ -93,6 +96,27 @@ export class CreateApartmentDto {
 
   @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   hasWardrobe?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasSharedBathroom?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasWashingMachineShared?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasWashingMachinePrivate?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasDesk?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasKitchenTable?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasRangeHood?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasFridge?: boolean;
 
   // ====== Amenities ======
   @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()

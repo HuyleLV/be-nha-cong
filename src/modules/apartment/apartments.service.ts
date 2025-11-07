@@ -78,6 +78,7 @@ export class ApartmentsService {
 
   /** Danh sách + cờ favorited cho user hiện tại (nếu có) */
   async findAll(q: QueryApartmentDto, currentUserId?: number) {
+    console.log(123);
     const page = q.page ?? 1;
     const limit = q.limit ?? 20;
 
@@ -86,12 +87,16 @@ export class ApartmentsService {
       .take(limit)
       .skip((page - 1) * limit);
 
-    if (q.q) qb.andWhere('(a.title ILIKE :kw OR a.street_address ILIKE :kw)', { kw: `%${q.q}%` });
+    if (q.q) {
+      const kw = `%${String(q.q).toLowerCase()}%`;
+      qb.andWhere('(LOWER(a.title) LIKE :kw OR LOWER(a.street_address) LIKE :kw)', { kw });
+    }
     if (q.locationId) qb.andWhere('a.location_id = :lid', { lid: q.locationId });
     if (q.buildingId) qb.andWhere('a.building_id = :bid', { bid: q.buildingId });
     if (q.status) qb.andWhere('a.status = :st', { st: q.status });
     if (q.bedrooms != null) qb.andWhere('a.bedrooms >= :bed', { bed: q.bedrooms });
     if (q.bathrooms != null) qb.andWhere('a.bathrooms >= :bath', { bath: q.bathrooms });
+    if (q.livingRooms != null) qb.andWhere('a.living_rooms >= :lr', { lr: q.livingRooms });
     if (q.minPrice != null) qb.andWhere('a.rent_price >= :minp', { minp: q.minPrice });
     if (q.maxPrice != null) qb.andWhere('a.rent_price <= :maxp', { maxp: q.maxPrice });
 
@@ -102,11 +107,25 @@ export class ApartmentsService {
       mz: asBool(q.hasMezzanine),
       ac: asBool(q.hasAirConditioner),
       wm: asBool(q.hasWashingMachine),
+      sb: asBool(q.hasSharedBathroom),
+      wms: asBool(q.hasWashingMachineShared),
+      wmp: asBool(q.hasWashingMachinePrivate),
+      desk: asBool(q.hasDesk),
+      kt: asBool(q.hasKitchenTable),
+      kr: asBool(q.hasRangeHood),
+      fr: asBool(q.hasFridge),
     };
     if (f.pb !== undefined) qb.andWhere('a.has_private_bathroom = :pb', { pb: f.pb });
     if (f.mz !== undefined) qb.andWhere('a.has_mezzanine = :mz', { mz: f.mz });
     if (f.ac !== undefined) qb.andWhere('a.has_air_conditioner = :ac', { ac: f.ac });
     if (f.wm !== undefined) qb.andWhere('a.has_washing_machine = :wm', { wm: f.wm });
+    if (f.sb !== undefined) qb.andWhere('a.has_shared_bathroom = :sb', { sb: f.sb });
+    if (f.wms !== undefined) qb.andWhere('a.has_washing_machine_shared = :wms', { wms: f.wms });
+    if (f.wmp !== undefined) qb.andWhere('a.has_washing_machine_private = :wmp', { wmp: f.wmp });
+    if (f.desk !== undefined) qb.andWhere('a.has_desk = :desk', { desk: f.desk });
+    if (f.kt !== undefined) qb.andWhere('a.has_kitchen_table = :kt', { kt: f.kt });
+    if (f.kr !== undefined) qb.andWhere('a.has_range_hood = :kr', { kr: f.kr });
+    if (f.fr !== undefined) qb.andWhere('a.has_fridge = :fr', { fr: f.fr });
 
     // lọc theo số ảnh tối thiểu
     if (q.minImages != null) {

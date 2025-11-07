@@ -7,6 +7,14 @@ import { UpdateViewingStatusDto } from './dto/update-viewing-status.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { IsInt } from 'class-validator';
+import { Transform } from 'class-transformer';
+
+class RecordViewDto {
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  apartmentId!: number;
+}
 
 @Controller('viewings')
 export class ViewingsController {
@@ -62,5 +70,40 @@ export class ViewingsController {
   @Delete('admin/:id')
   async adminRemove(@Param('id') id: string) {
     return this.svc.adminRemove(Number(id));
+  }
+
+  /* ========= Recently viewed (history) ========= */
+
+  @UseGuards(JwtAuthGuard)
+  @Post('visit')
+  async recordVisit(@Body() body: RecordViewDto, @Req() req: any) {
+    const userId = req?.user?.id ?? req?.user?.sub;
+    return this.svc.recordView(body.apartmentId, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('recent')
+  async recent(@Query('page') page = '1', @Query('limit') limit = '20', @Req() req: any) {
+    const userId = req?.user?.id ?? req?.user?.sub;
+    const p = parseInt(String(page), 10) || 1;
+    const l = Math.min(50, parseInt(String(limit), 10) || 20);
+    return this.svc.recentViews(userId, p, l);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('recent')
+  async clearRecent(@Req() req: any) {
+    const userId = req?.user?.id ?? req?.user?.sub;
+    return this.svc.clearRecent(userId);
+  }
+
+  /** Các phòng đã xem (đã được admin đánh dấu done) */
+  @UseGuards(JwtAuthGuard)
+  @Get('visited')
+  async visited(@Query('page') page = '1', @Query('limit') limit = '20', @Req() req: any) {
+    const userId = req?.user?.id ?? req?.user?.sub;
+    const p = parseInt(String(page), 10) || 1;
+    const l = Math.min(50, parseInt(String(limit), 10) || 20);
+    return this.svc.visitedApartments(userId, p, l);
   }
 }

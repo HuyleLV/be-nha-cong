@@ -7,12 +7,14 @@ import { CreateViewingDto } from './dto/create-viewing.dto';
 import { UpdateViewingStatusDto } from './dto/update-viewing-status.dto';
 import { QueryViewingDto } from './dto/query-viewing.dto';
 import { Apartment } from '../apartment/entities/apartment.entity';
+import { ApartmentView } from './entities/apartment-view.entity';
 
 @Injectable()
 export class ViewingsService {
   constructor(
     @InjectRepository(Viewing) private readonly repo: Repository<Viewing>,
     @InjectRepository(Apartment) private readonly aptRepo: Repository<Apartment>,
+    @InjectRepository(ApartmentView) private readonly viewRepo: Repository<ApartmentView>,
   ) {}
 
   private async assertApartment(apartmentId: number) {
@@ -105,9 +107,8 @@ export class ViewingsService {
     if (q.buildingId) qb.andWhere('a.buildingId = :bid', { bid: q.buildingId });
     if (q.status) qb.andWhere('v.status = :st', { st: q.status });
     if (q.q) {
-      qb.andWhere('(v.name ILIKE :kw OR v.email ILIKE :kw OR v.phone ILIKE :kw)', {
-        kw: `%${q.q}%`,
-      });
+      const kw = `%${String(q.q).toLowerCase()}%`;
+      qb.andWhere('(LOWER(v.name) LIKE :kw OR LOWER(v.email) LIKE :kw OR LOWER(v.phone) LIKE :kw)', { kw });
     }
 
     const [items, total] = await qb.getManyAndCount();
@@ -140,5 +141,64 @@ export class ViewingsService {
     const v = await this.repo.findOne({ where: { id } });
     if (!v) throw new NotFoundException('Yêu cầu xem phòng không tồn tại');
     return v;
+  }
+
+  /** Các phòng user đã thực sự đi xem (status = done) */
+  async visitedApartments(userId: number, page = 1, limit = 20) {
+    if (!userId) throw new ForbiddenException('Yêu cầu đăng nhập');
+    const qb = this.repo.createQueryBuilder('v')
+      .where('v.userId = :uid', { uid: userId })
+      .andWhere('v.status = :st', { st: 'done' })
+      .orderBy('v.updatedAt', 'DESC')
+      .take(limit)
+      .skip((page - 1) * limit);
+
+    const [viewings, total] = await qb.getManyAndCount();
+    const aptIds = Array.from(new Set(viewings.map(v => v.apartmentId)));
+    const apartments = aptIds.length ? await this.aptRepo.find({ where: { id: In(aptIds) } }) : [];
+    const aptMap = new Map(apartments.map(a => [a.id, a]));
+    const items = viewings.map(v => ({ apartment: aptMap.get(v.apartmentId) || null, viewingId: v.id, apartmentId: v.apartmentId, visitedAt: v.updatedAt }));
+    return { items, meta: { total, page, limit, pageCount: Math.ceil(total / limit) } };
+  }
+
+  /* ========= Recently viewed (history) ========= */
+  async recordView(apartmentId: number, userId: number) {
+    // Ensure apartment exists
+    const apt = await this.aptRepo.findOne({ where: { id: apartmentId } });
+    if (!apt) throw new NotFoundException('Phòng không tồn tại');
+    if (!userId) throw new ForbiddenException('Yêu cầu đăng nhập');
+
+    // Upsert: if exists, just update updatedAt
+    let rec = await this.viewRepo.findOne({ where: { apartmentId, userId } });
+    if (rec) {
+      rec.updatedAt = new Date();
+      await this.viewRepo.save(rec);
+    } else {
+      rec = this.viewRepo.create({ apartmentId, userId, });
+      await this.viewRepo.save(rec);
+    }
+    return { success: true };
+  }
+
+  async recentViews(userId: number, page = 1, limit = 20) {
+    if (!userId) throw new ForbiddenException('Yêu cầu đăng nhập');
+    // Simple findAndCount without custom selects to avoid driver-specific issues
+    const [recs, total] = await this.viewRepo.findAndCount({
+      where: { userId },
+      order: { updatedAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    const aptIds = recs.map(r => r.apartmentId);
+    const apts = aptIds.length ? await this.aptRepo.find({ where: { id: In(aptIds) } }) : [];
+    const aptMap = new Map(apts.map(a => [a.id, a]));
+    const items = recs.map(r => ({ apartment: aptMap.get(r.apartmentId) || null, viewedAt: r.updatedAt, apartmentId: r.apartmentId }));
+    return { items, meta: { total, page, limit, pageCount: Math.ceil(total / limit) } };
+  }
+
+  async clearRecent(userId: number) {
+    if (!userId) throw new ForbiddenException('Yêu cầu đăng nhập');
+    await this.viewRepo.delete({ userId });
+    return { success: true };
   }
 }
