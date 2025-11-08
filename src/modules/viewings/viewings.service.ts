@@ -105,7 +105,7 @@ export class ViewingsService {
 
     if (q.apartmentId) qb.andWhere('v.apartmentId = :aid', { aid: q.apartmentId });
     if (q.buildingId) qb.andWhere('a.buildingId = :bid', { bid: q.buildingId });
-    if (q.status) qb.andWhere('v.status = :st', { st: q.status });
+  if (q.status) qb.andWhere('v.status = :st', { st: q.status });
     if (q.q) {
       const kw = `%${String(q.q).toLowerCase()}%`;
       qb.andWhere('(LOWER(v.name) LIKE :kw OR LOWER(v.email) LIKE :kw OR LOWER(v.phone) LIKE :kw)', { kw });
@@ -143,12 +143,12 @@ export class ViewingsService {
     return v;
   }
 
-  /** Các phòng user đã thực sự đi xem (status = done) */
+  /** Các phòng user đã thực sự đi xem (status = visited) */
   async visitedApartments(userId: number, page = 1, limit = 20) {
     if (!userId) throw new ForbiddenException('Yêu cầu đăng nhập');
     const qb = this.repo.createQueryBuilder('v')
       .where('v.userId = :uid', { uid: userId })
-      .andWhere('v.status = :st', { st: 'done' })
+      .andWhere('v.status = :st', { st: 'visited' })
       .orderBy('v.updatedAt', 'DESC')
       .take(limit)
       .skip((page - 1) * limit);

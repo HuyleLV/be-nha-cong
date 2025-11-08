@@ -2,7 +2,7 @@ import { IsIn, IsOptional, IsString } from 'class-validator';
 import { ViewingStatus } from '../entities/viewing.entity';
 
 export class UpdateViewingStatusDto {
-  @IsIn(['pending', 'confirmed', 'cancelled', 'done'])
+  @IsIn(['pending', 'confirmed', 'cancelled', 'visited'])
   status: ViewingStatus;
 
   @IsOptional()

@@ -24,6 +24,11 @@ export class QueryApartmentDto {
   @Type(() => Number)
   locationId?: number;
 
+  @ApiPropertyOptional({ description: 'lọc theo location.slug (ví dụ ha-tay)' })
+  @IsOptional()
+  @IsString()
+  locationSlug?: string;
+
   @ApiPropertyOptional() 
   @IsOptional()
   @Type(() => Number)

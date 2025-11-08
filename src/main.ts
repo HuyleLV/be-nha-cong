@@ -9,12 +9,11 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  // 👉 Bật CORS cho toàn bộ domain
   app.enableCors({
-    origin: true, // cho phép tất cả domain, dùng '*' nếu không cần credentials
+    origin: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization, X-Requested-With',
-    credentials: true, // cho phép gửi cookie / header xác thực
+    credentials: true, 
   });
 
   const cfg = app.get(ConfigService);

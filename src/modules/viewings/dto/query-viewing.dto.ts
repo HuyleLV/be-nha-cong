@@ -23,6 +23,6 @@ export class QueryViewingDto {
   @Transform(({ value }) => (value === undefined ? value : parseInt(value, 10)))
   @IsInt()
   buildingId?: number;
-  @IsOptional() @IsIn(['pending','confirmed','cancelled'])
-  status?: 'pending' | 'confirmed' | 'cancelled';
+  @IsOptional() @IsIn(['pending','confirmed','cancelled','visited'])
+  status?: 'pending' | 'confirmed' | 'cancelled' | 'visited';
 }

@@ -91,7 +91,41 @@ export class ApartmentsService {
       const kw = `%${String(q.q).toLowerCase()}%`;
       qb.andWhere('(LOWER(a.title) LIKE :kw OR LOWER(a.street_address) LIKE :kw)', { kw });
     }
-    if (q.locationId) qb.andWhere('a.location_id = :lid', { lid: q.locationId });
+    // ===== Location filter: by id OR by slug (and descendants when not a District)
+    if (q.locationId) {
+      qb.andWhere('a.location_id = :lid', { lid: q.locationId });
+    } else if (q.locationSlug) {
+      const loc = await this.locRepo.findOne({ where: { slug: q.locationSlug as any }, relations: { parent: true } });
+      if (loc) {
+        if ((loc as any).level === 'District') {
+          qb.andWhere('a.location_id = :lid', { lid: loc.id });
+        } else if ((loc as any).level === 'City') {
+          // districts con trực tiếp của city
+          const districts = await this.locRepo.find({ where: { parent: { id: loc.id }, level: 'District' as any } });
+          const ids = districts.map(d => d.id);
+          if (ids.length > 0) qb.andWhere('a.location_id IN (:...ids)', { ids });
+          else qb.andWhere('1=0'); // không có district
+        } else {
+          // Province -> lấy cities rồi districts thuộc cities
+          const cities = await this.locRepo.find({ where: { parent: { id: loc.id }, level: 'City' as any } });
+          const cityIds = cities.map(c => c.id);
+          if (cityIds.length === 0) {
+            qb.andWhere('1=0');
+          } else {
+            const districts = await this.locRepo.createQueryBuilder('l')
+              .where('l.level = :lv', { lv: 'District' })
+              .andWhere('l.parent_id IN (:...cids)', { cids: cityIds })
+              .getMany();
+            const ids = districts.map(d => d.id);
+            if (ids.length > 0) qb.andWhere('a.location_id IN (:...ids)', { ids });
+            else qb.andWhere('1=0');
+          }
+        }
+      } else {
+        // slug không tồn tại → không trả kết quả
+        qb.andWhere('1=0');
+      }
+    }
     if (q.buildingId) qb.andWhere('a.building_id = :bid', { bid: q.buildingId });
     if (q.status) qb.andWhere('a.status = :st', { st: q.status });
     if (q.bedrooms != null) qb.andWhere('a.bedrooms >= :bed', { bed: q.bedrooms });
@@ -136,7 +170,7 @@ export class ApartmentsService {
       );
     }
 
-    const [items, total] = await qb.getManyAndCount();
+  const [items, total] = await qb.getManyAndCount();
 
     // === favorited map ===
     const favSet = await this.getFavIdSet(currentUserId, items.map(i => i.id));
