@@ -20,6 +20,7 @@ import { View } from 'typeorm';
 import { ViewingsModule } from './modules/viewings/viewings.module';
 import mailConfig from './config/mail.config';
 import { CommentsModule } from './modules/comments/comments.module';
+import { JobsModule } from './modules/jobs/jobs.module';
 
 @Module({
   imports: [
@@ -62,7 +63,8 @@ import { CommentsModule } from './modules/comments/comments.module';
     OwnershipsModule,
     FavoritesModule,
     ViewingsModule,
-    CommentsModule
+    CommentsModule,
+    JobsModule
   ],
 })
 export class AppModule {}
