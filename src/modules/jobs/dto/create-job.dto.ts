@@ -35,6 +35,10 @@ export class CreateJobDto {
   @IsOptional() @IsString() @Length(1,10)
   currency?: string;
 
+  // Ảnh đại diện cho tin tuyển dụng (tùy chọn). Có thể là path tương đối (/uploads/abc.jpg) hoặc URL tuyệt đối.
+  @IsOptional() @IsString() @Length(1,500)
+  coverImageUrl?: string;
+
   @IsOptional() @IsEnum(['draft','published','archived'])
   status?: JobStatus;
 }

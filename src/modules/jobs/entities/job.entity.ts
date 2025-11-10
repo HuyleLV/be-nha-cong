@@ -41,6 +41,10 @@ export class Job {
   @Column({ type: 'varchar', length: 10, nullable: true })
   currency?: string | null; // VND / USD
 
+  // Ảnh đại diện/cover cho tin tuyển dụng (đường dẫn tương đối hoặc URL tuyệt đối)
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  coverImageUrl?: string | null;
+
   @Column({ type: 'varchar', length: 20, default: 'draft' })
   status: JobStatus;
 

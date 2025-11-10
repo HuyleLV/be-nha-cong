@@ -33,8 +33,9 @@ export class User {
   @Column({ nullable: true })
   passwordHash?: string;
 
+  // Lưu ở dạng chuẩn hoá +84XXXXXXXXX để tránh trùng (0xxx và +84xxx)
   @Column({ length: 20, nullable: true })
-  phone?: string;
+  phone?: string; // TODO: Sau khi clean dữ liệu cũ, thêm unique index để ngăn trùng
 
   @Column({ type: 'enum', enum: Gender, nullable: true })
   gender?: Gender;
@@ -48,8 +49,8 @@ export class User {
   @Column({ length: 255, nullable: true })
   address?: string;
 
-  /** Xác thực email */
-  @Column({ type: 'boolean', default: false })
+  /** Xác thực email (DB lưu cột email_verified: 1 = đã xác thực, 0 = chưa) */
+  @Column({ name: 'email_verified', type: 'boolean', default: false })
   emailVerified: boolean;
 
   /** Mã OTP xác thực email (tạm thời) */
@@ -60,8 +61,8 @@ export class User {
   @Column({ type: 'datetime', nullable: true })
   emailVerificationExpires?: Date | null;
 
-  /** Xác thực số điện thoại */
-  @Column({ type: 'boolean', default: false })
+  /** Xác thực số điện thoại (DB lưu cột phone_verified: 1 = đã xác thực, 0 = chưa) */
+  @Column({ name: 'phone_verified', type: 'boolean', default: false })
   phoneVerified?: boolean;
 
   /** Mã OTP xác thực số điện thoại */

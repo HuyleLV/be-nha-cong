@@ -34,6 +34,18 @@ export class AuthService {
     return compact;
   }
 
+  // Chuẩn hoá nhẹ để so sánh (không ép lưu +84, chỉ dùng để tìm các biến thể): trả về set các dạng có thể
+  private phoneVariants(raw: string) {
+    const base = this.normalizePhone(raw);
+    const digits = base.replace(/[^0-9+]/g, '');
+    const out = new Set<string>();
+    if (base) out.add(base);
+    if (digits) out.add(digits);
+    if (/^0\d{8,}$/.test(digits)) out.add('+84' + digits.slice(1));
+    if (/^\+84\d{8,}$/.test(digits)) out.add('0' + digits.slice(3));
+    return Array.from(out);
+  }
+
   private async sendPhoneOtpViaZalo(phone: string, code: string) {
     const templateId = this.config.get<string>('ZNS_TEMPLATE_ID_OTP');
     const trackingId = `otp_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
@@ -59,6 +71,21 @@ export class AuthService {
       console.error('[ZALO][ERROR] sendPhoneOtpViaZalo', { phone, code, trackingId, error: (e as any)?.message || e });
       return { sent: false } as any;
     }
+  }
+
+  // Tìm user theo các biến thể số điện thoại và luôn chọn bản ghi đầu tiên được tạo
+  private async pickFirstUserByPhoneVariants(input: string) {
+    const variants = this.phoneVariants(input);
+    if (!variants.length) return null as any;
+    const list = await this.usersRepo.find({ where: variants.map(v => ({ phone: v })) });
+    if (!list.length) return null as any;
+    list.sort((a: any, b: any) => {
+      const ca = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const cb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (ca !== cb) return ca - cb; // bản ghi cũ hơn trước
+      return (a.id || 0) - (b.id || 0); // fallback theo id
+    });
+    return list[0] as any;
   }
 
   private async sendVerificationEmail(to: string, code: string) {
@@ -99,43 +126,111 @@ export class AuthService {
     });
   }
 
+  // Yêu cầu gửi mã xác thực email nếu chưa xác thực
+  async requestEmailVerification(userId: number) {
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user) throw new BadRequestException('Tài khoản không tồn tại');
+    if (!user.email) throw new BadRequestException('Bạn chưa cập nhật email');
+    if (user.emailVerified) return { message: 'Email đã được xác thực' };
+
+    const code = this.generateOtp(6);
+    const expires = new Date(Date.now() + 10 * 60 * 1000);
+    user.emailVerificationCode = code;
+    user.emailVerificationExpires = expires as any;
+    await this.usersRepo.save(user);
+    await this.sendVerificationEmail(user.email, code);
+    return { message: 'Đã gửi mã xác thực email', expiresAt: expires };
+  }
+
   async validateUser(identifier: string, password: string) {
-    // Allow login by email or phone
-    const isEmail = /@/.test(String(identifier || ''));
-    const where = isEmail ? { email: identifier } : { phone: String(identifier).trim() } as any;
-    const user = await this.usersRepo.findOne({ where });
-    if (!user || !user.passwordHash) return null;
+    // Allow login by email or phone (with normalization + fallback variants)
+    const rawIdent = String(identifier || '').trim();
+    const isEmail = /@/.test(rawIdent);
+    let user: any = null;
+    if (isEmail) {
+      user = await this.usersRepo.findOne({ where: { email: rawIdent } });
+    } else {
+      // Phone path: try multiple normalization strategies to reduce user friction
+      const entered = rawIdent;
+      const normalized = this.normalizePhone(entered); // removes spaces/dashes
+      const digits = normalized.replace(/[^0-9+]/g, '');
+      const variants = new Set<string>();
+      variants.add(entered);
+      variants.add(normalized);
+      variants.add(digits);
+      // If starts with 0, add +84 form (common VN conversion)
+      if (/^0\d{8,}$/.test(digits)) {
+        variants.add('+84' + digits.slice(1));
+      }
+      // If starts with +84, add local 0 variant
+      if (/^\+84\d{8,}$/.test(digits)) {
+        variants.add('0' + digits.slice(3));
+      }
+      // Improved: fetch all possible matches, prefer one with passwordHash
+      const variantArray = Array.from(variants).filter(Boolean);
+      if (variantArray.length) {
+        const candidates = await this.usersRepo.find({ where: variantArray.map(p => ({ phone: p })) }) as any[];
+        if (candidates && candidates.length) {
+          // Prefer user having passwordHash; if multiple, choose most recently updated
+          const withPassword = candidates.filter(c => !!c.passwordHash);
+          if (withPassword.length) {
+            withPassword.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            user = withPassword[0];
+          } else {
+            // fallback first candidate (deterministic: most recently updated)
+            candidates.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            user = candidates[0];
+          }
+        }
+      }
+    }
+    if (!user) return null;
+    if (!user.passwordHash) {
+      if (!isEmail) {
+        throw new BadRequestException('Tài khoản số điện thoại này chưa đặt mật khẩu. Vui lòng đăng nhập bằng OTP rồi đặt mật khẩu trong Hồ sơ.');
+      }
+      throw new BadRequestException('Tài khoản này chưa đặt mật khẩu. Vui lòng đặt mật khẩu trước khi đăng nhập.');
+    }
     const matched = await bcrypt.compare(password, user.passwordHash);
     if (!matched) return null;
 
-    // Previously we required either email or phone verification before login.
-    // Removed that requirement so users who register with email/password can login immediately.
 
     const { passwordHash, ...safe } = user as any;
     
     return safe;
   }
 
-  async login(user: { id?: number; email?: string | null; role?: string; name?: string | null; avatarUrl?: string | null; phone?: string | number | null }) {
-    // Kiểm tra đầu vào
-    if (!user || !user.id || !user.role) {
-      return {
-        message: 'Tài khoản hoặc mật khẩu không đúng',
-      };
+  async login(user: { id?: number; email?: string | null; role?: string; name?: string | null; avatarUrl?: string | null; phone?: string | number | null; phoneVerified?: boolean; emailVerified?: boolean }) {
+    // Kiểm tra đầu vào và gán mặc định role nếu thiếu (compat dữ liệu cũ)
+    if (!user || !user.id) {
+      return { message: 'Tài khoản hoặc mật khẩu không đúng' };
     }
-    
+    const effectiveRole = user.role || 'customer';
+
     const derivedName = user.name ?? (user.email ? user.email.split('@')[0] : undefined) ?? `User${user.id}`;
-    const payload: any = { sub: user.id, role: user.role, name: derivedName };
+    const payload: any = { sub: user.id, role: effectiveRole, name: derivedName };
     if (user.email) payload.email = user.email;
     if (user.avatarUrl) payload.avatarUrl = user.avatarUrl;
     if (user.phone) payload.phone = user.phone;
+    // Đưa trạng thái xác thực (dạng số) vào JWT payload để FE có thể cập nhật ngay sau khi xác minh
+    if (typeof user.phoneVerified !== 'undefined') payload.phone_verified = user.phoneVerified ? 1 : 0;
+    if (typeof user.emailVerified !== 'undefined') payload.email_verified = user.emailVerified ? 1 : 0;
   
     try {
       const token = this.jwtService.sign(payload);
       return {
         accessToken: token,
         expiresIn: process.env.JWT_EXPIRES_IN || '1h',
-        user: { id: user.id, email: user.email ?? null, role: user.role, name: derivedName, avatarUrl: user.avatarUrl ?? null, phone: user.phone ?? null },
+        user: {
+          id: user.id,
+          email: user.email ?? null,
+          role: effectiveRole,
+          name: derivedName,
+          avatarUrl: user.avatarUrl ?? null,
+          phone: user.phone ?? null,
+          phone_verified: user.phoneVerified ? 1 : 0,
+          email_verified: user.emailVerified ? 1 : 0,
+        },
         message: 'Đăng nhập thành công',
       };
     } catch (error) {
@@ -146,35 +241,80 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const existed = await this.usersRepo.findOne({ where: { email: dto.email } });
-    if (existed) throw new BadRequestException('Email đã tồn tại trên hệ thống!');
-    // Create user and mark emailVerified true so that email verification step is skipped.
+    // Nếu đã có user theo số điện thoại (từ bước OTP), thì cập nhật vào user đó thay vì tạo mới
+    const phoneRaw = (dto as any).phone as string | undefined;
+    let phoneUser: any = null;
+    if (phoneRaw) {
+      phoneUser = await this.pickFirstUserByPhoneVariants(this.normalizePhone(phoneRaw));
+    }
+
+    // Kiểm tra email đã tồn tại bởi user khác
+    if (dto.email) {
+      const existedEmail = await this.usersRepo.findOne({ where: { email: dto.email } });
+      if (existedEmail && (!phoneUser || existedEmail.id !== phoneUser.id)) {
+        throw new BadRequestException('Email đã tồn tại trên hệ thống!');
+      }
+    }
+
     const passwordHash = dto.password_hash ? await bcrypt.hash(dto.password_hash, 10) : undefined;
+
+    if (phoneUser) {
+      // Hoàn thiện hồ sơ vào user đã xác minh OTP (không tạo mới). Email CHƯA xác minh nên để false.
+      if (typeof dto.name !== 'undefined') phoneUser.name = dto.name ?? phoneUser.name ?? null;
+      if (dto.email) phoneUser.email = dto.email;
+      if (passwordHash) phoneUser.passwordHash = passwordHash;
+      if (!phoneUser.role) phoneUser.role = dto.role ?? 'customer';
+      phoneUser.emailVerified = false; // chưa xác minh email ở bước này
+      // giữ nguyên các field mã/xuất hạn xác minh email nếu đang dùng flow verify email riêng
+      const saved = await this.usersRepo.save(phoneUser);
+      return this.login({ id: saved.id, role: (saved as any).role, name: saved.name ?? null, email: saved.email ?? null, phone: saved.phone ?? null, avatarUrl: saved.avatarUrl ?? null, phoneVerified: (saved as any).phoneVerified, emailVerified: (saved as any).emailVerified });
+    }
+
+    // Không tìm thấy theo số điện thoại: tạo user mới theo đường đăng ký email
     const user = this.usersRepo.create({
       name: dto.name,
       email: dto.email,
       passwordHash,
       phone: dto.phone ?? null,
       role: dto.role ?? 'customer',
-      emailVerified: true, // skip email verification
+      emailVerified: false,
       emailVerificationCode: null,
       emailVerificationExpires: null,
     } as any);
-
     const saved = (await this.usersRepo.save(user)) as unknown as User;
-
-    // If the user provided a password, auto-login and return token so frontend can log in immediately.
     if (saved.passwordHash) {
-      return this.login({ id: saved.id, role: (saved as any).role, name: saved.name ?? null, email: saved.email ?? null, phone: saved.phone ?? null, avatarUrl: saved.avatarUrl ?? null });
+      return this.login({ id: saved.id, role: (saved as any).role, name: saved.name ?? null, email: saved.email ?? null, phone: saved.phone ?? null, avatarUrl: saved.avatarUrl ?? null, phoneVerified: (saved as any).phoneVerified, emailVerified: (saved as any).emailVerified });
     }
-
     return { message: 'Đăng ký thành công' };
   }
   
   async adminLogin(identifier: string, password: string) {
-    const isEmail = /@/.test(String(identifier || ''));
-    const where = isEmail ? { email: identifier } : { phone: String(identifier).trim() } as any;
-    const u = await this.usersRepo.findOne({ where });
+    const rawIdent = String(identifier || '').trim();
+    const isEmail = /@/.test(rawIdent);
+    let u: any = null;
+    if (isEmail) {
+      u = await this.usersRepo.findOne({ where: { email: rawIdent } });
+    } else {
+      const normalized = this.normalizePhone(rawIdent);
+      const digits = normalized.replace(/[^0-9+]/g, '');
+      const variants = new Set<string>([rawIdent, normalized, digits]);
+      if (/^0\d{8,}$/.test(digits)) variants.add('+84' + digits.slice(1));
+      if (/^\+84\d{8,}$/.test(digits)) variants.add('0' + digits.slice(3));
+      const variantArray = Array.from(variants).filter(Boolean);
+      if (variantArray.length) {
+        const candidates = await this.usersRepo.find({ where: variantArray.map(p => ({ phone: p })) }) as any[];
+        if (candidates && candidates.length) {
+          const withPassword = candidates.filter(c => !!c.passwordHash);
+          if (withPassword.length) {
+            withPassword.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            u = withPassword[0];
+          } else {
+            candidates.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            u = candidates[0];
+          }
+        }
+      }
+    }
     if (!u || !(await bcrypt.compare(password, u.passwordHash ?? '')))
       throw new BadRequestException('Tài khoản hoặc mật khẩu không đúng');
     if (u.role !== 'admin')
@@ -183,7 +323,7 @@ export class AuthService {
     const { passwordHash, ...safe } = u as any;
     const name = safe.name ?? safe.username ?? safe.email?.split('@')[0] ?? 'Admin';
   
-    return this.login({ id: safe.id, email: safe.email, role: safe.role, name, phone: (safe as any).phone });
+  return this.login({ id: safe.id, email: safe.email, role: safe.role, name, phone: (safe as any).phone, phoneVerified: (safe as any).phoneVerified, emailVerified: (safe as any).emailVerified });
   }
 
   async verifyEmail(email: string, code: string) {
@@ -215,7 +355,8 @@ export class AuthService {
     const phone = this.normalizePhone(phoneRaw);
     if (!phone) throw new BadRequestException('Số điện thoại không hợp lệ');
 
-    let user = await this.usersRepo.findOne({ where: { phone } });
+    // Luôn tìm theo biến thể và chọn bản ghi đầu tiên nếu đã tồn tại
+    let user = await this.pickFirstUserByPhoneVariants(phone);
     // If a user with this phone already exists and has a password (fully registered), don't throw 400.
     // Instead return a friendly message so frontend can guide the user to login.
     if (user && user.passwordHash) {
@@ -225,9 +366,9 @@ export class AuthService {
     const expires = new Date(Date.now() + 10 * 60 * 1000);
 
     if (!user) {
-      // Tạo tài khoản tối thiểu với role customer
+      // Tạo tài khoản tối thiểu với role customer (lưu đúng định dạng người dùng đã nhập)
       user = this.usersRepo.create({
-        phone,
+        phone: phone,
         role: 'customer' as any,
         emailVerified: false,
         phoneVerified: false,
@@ -241,7 +382,7 @@ export class AuthService {
     }
 
     await this.usersRepo.save(user);
-    await this.sendPhoneOtpViaZalo(phone, otp);
+  await this.sendPhoneOtpViaZalo(phone, otp);
     return { message: 'Đã gửi mã xác thực qua Zalo/SMS. Vui lòng kiểm tra tin nhắn.', expiresAt: expires };
   }
 
@@ -250,11 +391,12 @@ export class AuthService {
     const phone = this.normalizePhone(phoneRaw);
     if (!phone || !code) throw new BadRequestException('Thiếu thông tin xác minh');
 
-    let user = await this.usersRepo.findOne({ where: { phone } });
+    // Luôn chọn bản ghi đầu tiên nếu đã tồn tại
+    let user = await this.pickFirstUserByPhoneVariants(phone);
     if (!user) {
-      // Cho phép tạo nhanh nếu chưa tồn tại, coi như đã xác minh (trường hợp user đến thẳng verify với đúng OTP do hệ thống gửi trước)
+      // Tạo nhanh nếu chưa có, lưu đúng số user nhập (không ép +84)
       user = this.usersRepo.create({
-        phone,
+        phone: phone,
         role: 'customer' as any,
         phoneVerified: true,
         emailVerified: false,
@@ -262,7 +404,7 @@ export class AuthService {
         phoneVerificationExpires: null,
       } as any) as any;
       const saved = await this.usersRepo.save(user);
-      return this.login({ id: saved.id, role: (saved as any).role, name: saved.name ?? null, email: saved.email ?? null, phone: saved.phone ?? null, avatarUrl: saved.avatarUrl ?? null });
+      return this.login({ id: saved.id, role: (saved as any).role, name: saved.name ?? null, email: saved.email ?? null, phone: saved.phone ?? null, avatarUrl: saved.avatarUrl ?? null, phoneVerified: true, emailVerified: (saved as any).emailVerified });
     }
 
     if (!user.phoneVerificationCode || !user.phoneVerificationExpires) {
@@ -280,8 +422,9 @@ export class AuthService {
     user.phoneVerificationCode = null;
     user.phoneVerificationExpires = null;
     await this.usersRepo.save(user);
+    console.log('[VERIFY_PHONE] Updated user', { id: user.id, phone: user.phone, phoneVerified: user.phoneVerified });
 
-    return this.login({ id: user.id, role: (user as any).role, name: user.name ?? null, email: user.email ?? null, phone: user.phone ?? null, avatarUrl: user.avatarUrl ?? null });
+  return this.login({ id: user.id, role: (user as any).role, name: user.name ?? null, email: user.email ?? null, phone: user.phone ?? null, avatarUrl: user.avatarUrl ?? null, phoneVerified: true, emailVerified: (user as any).emailVerified });
   }
 
   async loginWithGoogle(idToken: string) {
@@ -352,6 +495,8 @@ export class AuthService {
       name: user.name,
       avatarUrl: user.avatarUrl,
       phone: (user as any).phone,
+      phoneVerified: (user as any).phoneVerified,
+      emailVerified: (user as any).emailVerified,
     });
   }
 
@@ -440,6 +585,8 @@ export class AuthService {
       name: user.name,
       avatarUrl: user.avatarUrl,
       phone: (user as any).phone,
+      phoneVerified: (user as any).phoneVerified,
+      emailVerified: (user as any).emailVerified,
     });
   }
 

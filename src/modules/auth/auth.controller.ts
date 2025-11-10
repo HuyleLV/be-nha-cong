@@ -37,6 +37,14 @@ export class AuthController {
             return this.authService.verifyEmail(dto.email, dto.code);
         }
 
+        // Gửi mã xác thực email (chỉ khi chưa xác thực) - cần đăng nhập
+        @UseGuards(JwtAuthGuard)
+        @Post('request-email-verification')
+        async requestEmailVerification(@Req() req: any) {
+            const userId = req.user?.id ?? req.user?.sub;
+            return this.authService.requestEmailVerification(userId);
+        }
+
     // Bắt đầu đăng ký bằng số điện thoại: tạo/ghi OTP và gửi qua Zalo/ZNS (nếu cấu hình), fallback log server
     @Post('start-register-phone')
     async startRegisterByPhone(@Body() dto: SendPhoneOtpDto) {
