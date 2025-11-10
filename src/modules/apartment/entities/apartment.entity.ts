@@ -69,6 +69,7 @@ export class Apartment {
   @Column({ name: 'images', type: 'simple-json', nullable: true })
   images?: string[];
 
+
   /* ========== Service fees ========== */
   @Column({ name: 'electricity_price_per_kwh', type: 'int', unsigned: true, nullable: true })
   electricityPricePerKwh?: number;

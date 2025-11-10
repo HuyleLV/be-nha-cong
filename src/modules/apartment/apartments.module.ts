@@ -7,6 +7,7 @@ import { Apartment } from './entities/apartment.entity';
 import { Location } from '../locations/entities/locations.entity';
 import { Building } from '../building/entities/building.entity';
 import { Favorite } from '../favorites/entities/favorite.entity'; // <-- import entity Favorite
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
@@ -14,7 +15,8 @@ import { Favorite } from '../favorites/entities/favorite.entity'; // <-- import 
       Apartment,
       Location,
       Building,
-      Favorite,
+  Favorite,
+  User,
     ]),
   ],
   controllers: [ApartmentsController],

@@ -62,6 +62,7 @@ export class CreateApartmentDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString()
   coverImageUrl?: string;
 
+
   // ====== Gallery images ======
   @ApiProperty({ type: [String], required: false, description: 'Danh sách URL ảnh' })
   @IsOptional() @IsArray() @ArrayMaxSize(50)

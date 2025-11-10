@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Apartment } from './entities/apartment.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateApartmentDto } from './dto/create-apartment.dto';
 import { UpdateApartmentDto } from './dto/update-apartment.dto';
 import { QueryApartmentDto } from './dto/query-apartment.dto';
@@ -25,6 +26,7 @@ export class ApartmentsService {
     @InjectRepository(Location) private readonly locRepo: Repository<Location>,
     @InjectRepository(Building) private readonly bRepo: Repository<Building>,
     @InjectRepository(Favorite) private readonly favRepo: Repository<Favorite>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
   ) {}
 
   private async ensureUniqueSlug(raw: string) {
@@ -269,7 +271,7 @@ export class ApartmentsService {
       qb.where('a.slug = :slug', { slug: String(idOrSlug) });
     }
 
-    const apt = await qb.getOne();
+  const apt = await qb.getOne();
     if (!apt) throw new NotFoundException('Apartment không tồn tại');
 
     // Lấy cờ favorited
@@ -282,7 +284,14 @@ export class ApartmentsService {
       location = await this.locRepo.findOne({ where: { id: (apt as any).locationId } });
     }
 
-    return { ...apt, favorited, location: location || undefined } as any;
+    // Load owner/creator name for FE display
+    let contactName: string | undefined = undefined;
+    if ((apt as any).createdById) {
+      const owner = await this.userRepo.findOne({ where: { id: (apt as any).createdById } });
+      contactName = owner?.name || undefined;
+    }
+
+    return { ...apt, favorited, location: location || undefined, contactName } as any;
   }
 
   async update(id: number, dto: UpdateApartmentDto) {

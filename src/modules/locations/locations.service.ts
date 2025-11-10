@@ -72,6 +72,24 @@ export class LocationsService {
     return parent;
   }
 
+  private validateHierarchy(level: string, parent: Location | null) {
+    if (!parent) {
+      if (level === 'City' || level === 'District') {
+        throw new BadRequestException(`${level} requires a parent`);
+      }
+      return;
+    }
+    if (level === 'City' && parent.level !== 'Province') {
+      throw new BadRequestException('City parent must be a Province');
+    }
+    if (level === 'District' && parent.level !== 'City') {
+      throw new BadRequestException('District parent must be a City');
+    }
+    if (level === 'Province' && parent) {
+      throw new BadRequestException('Province cannot have a parent');
+    }
+  }
+
   private async assertSlugUnique(slug: string, excludeId?: number) {
     const existed = await this.repo.findOne({ where: { slug } });
     if (existed && existed.id !== excludeId) {
@@ -84,14 +102,16 @@ export class LocationsService {
     if (!slug) throw new BadRequestException('Invalid slug');
     await this.assertSlugUnique(slug);
 
+    const parent = await this.ensureParent(dto.parentId ?? null);
+    this.validateHierarchy(dto.level, parent);
+
     const entity = this.repo.create({
       name: dto.name,
       slug,
       level: dto.level,
       coverImageUrl: dto.coverImageUrl,
+      parent,
     });
-
-    entity.parent = await this.ensureParent(dto.parentId ?? null);
 
     return this.repo.save(entity);
   }
@@ -116,12 +136,16 @@ export class LocationsService {
       if (dto.parentId === null) {
         current.parent = null;
       } else {
-        // chặn tự nhận mình làm con của chính mình
         if (dto.parentId === id) {
           throw new BadRequestException('parentId cannot be the same as current node');
         }
-        current.parent = await this.ensureParent(dto.parentId);
+        const nextParent = await this.ensureParent(dto.parentId);
+        this.validateHierarchy(current.level, nextParent);
+        current.parent = nextParent;
       }
+    } else {
+      // Even if parentId not provided, ensure existing parent still valid after potential level change
+      this.validateHierarchy(current.level, current.parent ?? null);
     }
 
     return this.repo.save(current);
