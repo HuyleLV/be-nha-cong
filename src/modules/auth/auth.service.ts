@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 import { ZaloService } from '../zalo/zalo.service';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -617,5 +618,24 @@ export class AuthService {
     await this.usersRepo.save(user);
     const { passwordHash, ...safe } = user as any;
     return { message: 'Cập nhật hồ sơ thành công', user: safe };
+  }
+
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    if (!userId) throw new BadRequestException('Thiếu thông tin người dùng');
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user || !user.passwordHash) {
+      throw new BadRequestException('Tài khoản không tồn tại hoặc chưa đặt mật khẩu');
+    }
+    if (dto.newPassword !== dto.confirmNewPassword) {
+      throw new BadRequestException('Xác nhận mật khẩu mới không khớp');
+    }
+    if (dto.newPassword === dto.currentPassword) {
+      throw new BadRequestException('Mật khẩu mới phải khác mật khẩu hiện tại');
+    }
+    const ok = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!ok) throw new BadRequestException('Mật khẩu hiện tại không đúng');
+    user.passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.usersRepo.save(user);
+    return { message: 'Đổi mật khẩu thành công' };
   }
 }

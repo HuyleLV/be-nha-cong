@@ -7,7 +7,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginGoogleDto } from './dto/login-google.dto';
 import { LoginGoogleCodeDto } from './dto/login-google-code.dto';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
-import { SendPhoneOtpDto, VerifyPhoneDto } from './dto';
+import { SendPhoneOtpDto, VerifyPhoneDto, ChangePasswordDto } from './dto';
 
 @Controller('auth')
 export class AuthController {
@@ -83,5 +83,13 @@ export class AuthController {
     @Post('login-admin')
     async loginAdmin(@Body() dto: LoginDto) {
         return this.authService.adminLogin(dto.identifier, dto.password_hash);
+    }
+
+    // Đổi mật khẩu: yêu cầu nhập mật khẩu hiện tại
+    @UseGuards(JwtAuthGuard)
+    @Post('change-password')
+    async changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
+        const userId = req.user?.id ?? req.user?.sub;
+        return this.authService.changePassword(userId, dto);
     }
 }
