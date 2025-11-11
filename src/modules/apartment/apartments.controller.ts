@@ -28,6 +28,16 @@ export class ApartmentsController {
     return this.service.getHomeSections(citySlug, Number(limitPerDistrict), userId);
   }
 
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('most-interested')
+  async getMostInterested(
+    @Query('limit') limit = 5,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.id ?? req.user?.sub ?? undefined;
+    return this.service.getMostInterested(Number(limit), userId);
+  }
+
   @Post()
   create(@Body() dto: CreateApartmentDto) {
     return this.service.create(dto /*, req.user?.id */);

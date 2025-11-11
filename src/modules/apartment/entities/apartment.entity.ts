@@ -133,6 +133,16 @@ export class Apartment {
   @Column({ name: 'flexible_hours', type: 'bool', default: false })
   flexibleHours: boolean;
 
+  /* ========== New amenities (2025-11): Elevator / EV / Pet ========== */
+  @Column({ name: 'has_elevator', type: 'bool', default: false })
+  hasElevator: boolean;
+
+  @Column({ name: 'allow_pet', type: 'bool', default: false })
+  allowPet: boolean;
+
+  @Column({ name: 'allow_electric_vehicle', type: 'bool', default: false })
+  allowElectricVehicle: boolean;
+
   /* ========== Verification ========== */
   @Column({ name: 'is_verified', type: 'bool', default: false })
   isVerified: boolean;

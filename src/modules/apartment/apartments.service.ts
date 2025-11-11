@@ -150,6 +150,9 @@ export class ApartmentsService {
       kt: asBool(q.hasKitchenTable),
       kr: asBool(q.hasRangeHood),
       fr: asBool(q.hasFridge),
+      elv: asBool((q as any).hasElevator),
+      pet: asBool((q as any).allowPet),
+      ev: asBool((q as any).allowElectricVehicle),
     };
     if (f.pb !== undefined) qb.andWhere('a.has_private_bathroom = :pb', { pb: f.pb });
     if (f.mz !== undefined) qb.andWhere('a.has_mezzanine = :mz', { mz: f.mz });
@@ -162,6 +165,9 @@ export class ApartmentsService {
     if (f.kt !== undefined) qb.andWhere('a.has_kitchen_table = :kt', { kt: f.kt });
     if (f.kr !== undefined) qb.andWhere('a.has_range_hood = :kr', { kr: f.kr });
     if (f.fr !== undefined) qb.andWhere('a.has_fridge = :fr', { fr: f.fr });
+  if (f.elv !== undefined) qb.andWhere('a.has_elevator = :elv', { elv: f.elv });
+  if (f.pet !== undefined) qb.andWhere('a.allow_pet = :pet', { pet: f.pet });
+  if (f.ev !== undefined) qb.andWhere('a.allow_electric_vehicle = :ev', { ev: f.ev });
 
     // lọc theo số ảnh tối thiểu
     if (q.minImages != null) {
@@ -257,6 +263,36 @@ export class ApartmentsService {
       city: { id: city.id, name: city.name, slug: city.slug, level: city.level },
       sections,
     };
+  }
+
+  /** Top các căn hộ được quan tâm nhiều nhất (dựa vào lượt yêu thích). Nếu chưa có lượt yêu thích → fallback created_at DESC */
+  async getMostInterested(limit = 5, currentUserId?: number) {
+    // Chỉ lấy tối đa 5 phòng theo yêu cầu
+    if (!limit || limit > 5) limit = 5;
+    // Sử dụng subquery COUNT(f) gắn trực tiếp vào select để tránh lỗi alias join
+    const qb = this.repo.createQueryBuilder('a')
+      .where('a.status = :st', { st: 'published' })
+      .addSelect((sub) => {
+        return sub
+          .select('COUNT(f.id)', 'favCount')
+          .from(Favorite, 'f')
+          .where('f.apartmentId = a.id'); // tham chiếu alias ngoài
+      }, 'favCount')
+      .orderBy('favCount', 'DESC')
+      .addOrderBy('a.created_at', 'DESC')
+      .take(limit);
+
+    const { entities, raw } = await qb.getRawAndEntities();
+    const withCount = entities.map((e, idx) => ({
+      ...(e as Apartment),
+      favCount: Number((raw[idx] as any)?.favCount ?? 0),
+    }));
+
+    // Lấy cờ favorited theo user hiện tại
+    const favSet = await this.getFavIdSet(currentUserId, withCount.map(i => i.id));
+    const items = withCount.map(i => ({ ...i, favorited: favSet.has(i.id) }));
+
+    return { items };
   }
   
 

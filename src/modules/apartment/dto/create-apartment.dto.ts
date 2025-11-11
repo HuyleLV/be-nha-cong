@@ -132,6 +132,16 @@ export class CreateApartmentDto {
   @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   flexibleHours?: boolean;
 
+  // ===== New amenities (2025-11) =====
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasElevator?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  allowPet?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  allowElectricVehicle?: boolean;
+
   // ===== Verification =====
   @ApiProperty({ required: false, default: false })
   @IsOptional() @IsBoolean()

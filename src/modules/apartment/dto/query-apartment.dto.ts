@@ -137,6 +137,22 @@ export class QueryApartmentDto {
   @IsBooleanString()
   hasFridge?: string;
 
+  // ===== New amenities filters (2025-11) =====
+  @ApiPropertyOptional({ description: 'có thang máy' })
+  @IsOptional()
+  @IsBooleanString()
+  hasElevator?: string;
+
+  @ApiPropertyOptional({ description: 'cho nuôi pet' })
+  @IsOptional()
+  @IsBooleanString()
+  allowPet?: string;
+
+  @ApiPropertyOptional({ description: 'hỗ trợ xe điện (sạc/đỗ)' })
+  @IsOptional()
+  @IsBooleanString()
+  allowElectricVehicle?: string;
+
   // lọc theo số lượng ảnh tối thiểu
   @ApiPropertyOptional({ description: 'yêu cầu số ảnh tối thiểu' })
   @IsOptional()
