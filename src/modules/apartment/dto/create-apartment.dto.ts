@@ -82,6 +82,19 @@ export class CreateApartmentDto {
   @ApiProperty({ required: false }) @IsOptional() @IsInt() @Min(0)
   commonServiceFeePerPerson?: number;
 
+  @ApiProperty({ required: false, description: 'Ghi chú về phí dịch vụ' })
+  @IsOptional() @IsString()
+  serviceFeeNote?: string;
+
+  // ====== Section notes (2025-11) ======
+  @ApiProperty({ required: false, description: 'Ghi chú hiển thị dưới danh sách nội thất' })
+  @IsOptional() @IsString()
+  furnitureNote?: string;
+
+  @ApiProperty({ required: false, description: 'Ghi chú hiển thị dưới danh sách tiện nghi' })
+  @IsOptional() @IsString()
+  amenitiesNote?: string;
+
   // ====== Furnitures ======
   @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   hasAirConditioner?: boolean;
@@ -97,6 +110,22 @@ export class CreateApartmentDto {
 
   @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   hasWardrobe?: boolean;
+
+  // ===== Additional furnitures (2025-11) =====
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasBed?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasMattress?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasBedding?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasDressingTable?: boolean;
+
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
+  hasSofa?: boolean;
 
   @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean()
   hasSharedBathroom?: boolean;

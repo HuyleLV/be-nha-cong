@@ -83,6 +83,10 @@ export class Apartment {
   @Column({ name: 'common_service_fee_per_person', type: 'int', unsigned: true, nullable: true })
   commonServiceFeePerPerson?: number;
 
+  // Optional note about service fees
+  @Column({ name: 'service_fee_note', type: 'text', nullable: true })
+  serviceFeeNote?: string;
+
   /* ========== Furnitures ========== */
   @Column({ name: 'has_air_conditioner', type: 'bool', default: false })
   hasAirConditioner: boolean;
@@ -98,6 +102,22 @@ export class Apartment {
 
   @Column({ name: 'has_wardrobe', type: 'bool', default: false })
   hasWardrobe: boolean;
+
+  // ===== Additional furnitures (2025-11) =====
+  @Column({ name: 'has_bed', type: 'bool', default: false })
+  hasBed: boolean;
+
+  @Column({ name: 'has_mattress', type: 'bool', default: false })
+  hasMattress: boolean;
+
+  @Column({ name: 'has_bedding', type: 'bool', default: false })
+  hasBedding: boolean;
+
+  @Column({ name: 'has_dressing_table', type: 'bool', default: false })
+  hasDressingTable: boolean;
+
+  @Column({ name: 'has_sofa', type: 'bool', default: false })
+  hasSofa: boolean;
 
   /* ========== Amenities ========== */
   @Column({ name: 'has_private_bathroom', type: 'bool', default: false })
@@ -142,6 +162,13 @@ export class Apartment {
 
   @Column({ name: 'allow_electric_vehicle', type: 'bool', default: false })
   allowElectricVehicle: boolean;
+
+  /* ========== Notes for UI sections (2025-11) ========== */
+  @Column({ name: 'furniture_note', type: 'text', nullable: true })
+  furnitureNote?: string;
+
+  @Column({ name: 'amenities_note', type: 'text', nullable: true })
+  amenitiesNote?: string;
 
   /* ========== Verification ========== */
   @Column({ name: 'is_verified', type: 'bool', default: false })
