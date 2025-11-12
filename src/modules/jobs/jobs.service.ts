@@ -1,9 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Job } from './entities/job.entity';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
+import { JobApplication } from './entities/job-application.entity';
+import { CreateJobApplicationDto } from './dto/create-job-application.dto';
 
 const toSlug = (s: string) => (s||'')
   .normalize('NFD').replace(/\p{Diacritic}/gu,'')
@@ -12,7 +14,10 @@ const toSlug = (s: string) => (s||'')
 
 @Injectable()
 export class JobsService {
-  constructor(@InjectRepository(Job) private readonly repo: Repository<Job>) {}
+  constructor(
+    @InjectRepository(Job) private readonly repo: Repository<Job>,
+    @InjectRepository(JobApplication) private readonly appRepo: Repository<JobApplication>,
+  ) {}
 
   private async ensureUniqueSlug(base: string, excludeId?: number) {
     let slug = toSlug(base);
@@ -75,5 +80,20 @@ export class JobsService {
     if (!ok) throw new NotFoundException('Job not found');
     await this.repo.delete(id);
     return { success: true };
+  }
+
+  // ===== Applications =====
+  async createApplication(idOrSlug: number | string, body: Omit<CreateJobApplicationDto, 'jobId'>) {
+    const job = await this.findOne(idOrSlug);
+    const app = this.appRepo.create({
+      jobId: job.id,
+      name: (body.name || '').trim(),
+      email: body.email?.trim() || null,
+      phone: body.phone?.trim() || null,
+      cvUrl: body.cvUrl?.trim() || null,
+      message: body.message || null,
+    });
+    if (!app.name) throw new BadRequestException('Name is required');
+    return this.appRepo.save(app);
   }
 }

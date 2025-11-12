@@ -6,7 +6,7 @@ import {
   UploadedFiles,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { multerImageOptions, multerVideoOptions } from './upload.config';
+import { multerImageOptions, multerVideoOptions, multerDocOptions } from './upload.config';
 import { UploadService } from './upload.service';
 
 @Controller('upload')
@@ -32,6 +32,13 @@ export class UploadController {
   @UseInterceptors(FileInterceptor('file', multerVideoOptions))
   uploadVideo(@UploadedFile() file: Express.Multer.File) {
     return this.service.mapVideoFile(file);
+  }
+
+  // Upload 1 CV/document: field name = "file"
+  @Post('file')
+  @UseInterceptors(FileInterceptor('file', multerDocOptions))
+  uploadDoc(@UploadedFile() file: Express.Multer.File) {
+    return this.service.mapDocFile(file);
   }
 }
   

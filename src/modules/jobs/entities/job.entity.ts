@@ -45,6 +45,10 @@ export class Job {
   @Column({ type: 'varchar', length: 500, nullable: true })
   coverImageUrl?: string | null;
 
+  // Ảnh bìa lớn hiển thị ở trang chi tiết (hero). Tách khỏi ảnh đại diện dùng ở listing.
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  bannerImageUrl?: string | null;
+
   @Column({ type: 'varchar', length: 20, default: 'draft' })
   status: JobStatus;
 
@@ -56,4 +60,6 @@ export class Job {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // ===== Applications relation will be added later (one-to-many) =====
 }

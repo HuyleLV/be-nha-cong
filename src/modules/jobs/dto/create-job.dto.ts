@@ -39,6 +39,10 @@ export class CreateJobDto {
   @IsOptional() @IsString() @Length(1,500)
   coverImageUrl?: string;
 
+  // Ảnh bìa lớn (hero) hiển thị ở trang chi tiết
+  @IsOptional() @IsString() @Length(1,500)
+  bannerImageUrl?: string;
+
   @IsOptional() @IsEnum(['draft','published','archived'])
   status?: JobStatus;
 }

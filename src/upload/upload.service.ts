@@ -13,6 +13,11 @@ export class UploadService {
     return `/static/videos/${filename}`;
   }
 
+  buildPublicDocUrl(filename: string) {
+    // cv được phục vụ tại /static/docs/<filename>
+    return `/static/docs/${filename}`;
+  }
+
   mapFile(file: Express.Multer.File) {
     // Back-compat image mapping
     return {
@@ -40,5 +45,15 @@ export class UploadService {
 
   mapVideoFiles(files: Express.Multer.File[]) {
     return files.map((f) => this.mapVideoFile(f));
+  }
+
+  mapDocFile(file: Express.Multer.File) {
+    return {
+      originalName: file.originalname,
+      filename: file.filename,
+      mimetype: file.mimetype,
+      size: file.size,
+      url: this.buildPublicDocUrl(file.filename),
+    };
   }
 }

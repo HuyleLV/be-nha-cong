@@ -34,6 +34,19 @@ export const ensureVideoUploadDirs = () => {
   return dir;
 };
 
+// ====== DOCUMENT CONFIG (CV) ======
+const DOC_MIMES = [
+  'application/pdf', // pdf
+  'application/msword', // doc
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+];
+
+export const ensureDocUploadDirs = () => {
+  const dir = join(process.cwd(), 'uploads', 'docs');
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+};
+
 export const multerImageOptions = {
   storage: diskStorage({
     destination: (_req, _file, cb) => {
@@ -78,6 +91,30 @@ export const multerVideoOptions = {
   },
   limits: {
     fileSize: 25 * 1024 * 1024, // 25MB
+    files: 1,
+  },
+};
+
+export const multerDocOptions = {
+  storage: diskStorage({
+    destination: (_req, _file, cb) => {
+      const dir = ensureDocUploadDirs();
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const safeExt = extname(file.originalname).toLowerCase(); // .pdf/.doc/.docx
+      const filename = `${uuid()}${safeExt}`;
+      cb(null, filename);
+    },
+  }),
+  fileFilter: (req: Request, file: Express.Multer.File, cb: Function) => {
+    if (!DOC_MIMES.includes(file.mimetype)) {
+      return cb(new BadRequestException('Chỉ cho phép file PDF, DOC, DOCX'), false);
+    }
+    cb(null, true);
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB CV max
     files: 1,
   },
 };

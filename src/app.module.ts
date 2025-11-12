@@ -52,6 +52,10 @@ import { JobsModule } from './modules/jobs/jobs.module';
       rootPath: join(process.cwd(), 'uploads', 'videos'),
       serveRoot: '/static/videos',
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads', 'docs'),
+      serveRoot: '/static/docs',
+    }),
     UploadModule,
     UsersModule,
     BlogModule,

@@ -44,6 +44,10 @@ export class CreateApartmentDto {
   @ApiProperty({ default: 0 }) @IsOptional() @IsInt() @Min(0)
   livingRooms?: number;
 
+  @ApiProperty({ required: false, description: 'Sức chứa (số người ở tối đa)' })
+  @IsOptional() @IsInt() @Min(0)
+  guests?: number;
+
   @ApiProperty({ required: false, description: 'numeric string, ví dụ "25.5"' })
   @IsOptional() @IsString()
   areaM2?: string;
