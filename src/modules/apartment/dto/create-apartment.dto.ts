@@ -43,10 +43,18 @@ export class CreateApartmentDto {
 
   @ApiProperty({ default: 0 }) @IsOptional() @IsInt() @Min(0)
   livingRooms?: number;
+  
+  @ApiProperty({ required: false, description: 'Mã phòng/căn hộ nội bộ (ví dụ P302, A12)' })
+  @IsOptional() @IsString() @MaxLength(50)
+  roomCode?: string;
 
   @ApiProperty({ required: false, description: 'Sức chứa (số người ở tối đa)' })
   @IsOptional() @IsInt() @Min(0)
   guests?: number;
+
+  @ApiProperty({ required: false, description: 'Tầng trong tòa nhà (>=1), null nếu chưa gán' })
+  @IsOptional() @IsInt() @Min(1)
+  floorNumber?: number;
 
   @ApiProperty({ required: false, description: 'numeric string, ví dụ "25.5"' })
   @IsOptional() @IsString()

@@ -79,6 +79,14 @@ export class Apartment {
   @Column({ name: 'living_rooms', default: 0 })
   livingRooms: number;
   // Số phòng khách (nếu phòng khép kín nhỏ có thể =0).
+  
+  @Column({ name: 'room_code', length: 50, nullable: true })
+  roomCode?: string;
+  // Mã phòng/căn hộ nội bộ (ví dụ: P302, A12). Dùng để hiển thị hoặc tra cứu nhanh trong admin.
+
+  @Column({ name: 'floor_number', type: 'int', unsigned: true, nullable: true })
+  floorNumber?: number | null;
+  // Số tầng trong tòa nhà (bắt đầu từ 1). Null nếu chưa gán hoặc không thuộc tòa. Giúp group hiển thị theo tầng.
 
   @Column({ name: 'guests', type: 'int', unsigned: true, nullable: true })
   guests?: number;
