@@ -174,6 +174,10 @@ export class QueryApartmentDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1)
   minDiscount?: number;
 
+  @ApiPropertyOptional({ description: 'lọc ưu đãi số tiền tối thiểu (VND)' })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1)
+  minDiscountAmount?: number;
+
   @ApiPropertyOptional({ description: 'sắp xếp', enum: ['discount_desc'] })
   @IsOptional() @IsString()
   sort?: 'discount_desc' | string;

@@ -139,8 +139,12 @@ export class ApartmentsService {
     // Discount filters
     if ((q as any).minDiscount != null) {
       qb.andWhere('COALESCE(a.discount_percent, 0) >= :mind', { mind: (q as any).minDiscount });
-    } else if ((q as any).hasDiscount === 'true') {
-      qb.andWhere('COALESCE(a.discount_percent, 0) > 0');
+    }
+    if ((q as any).minDiscountAmount != null) {
+      qb.andWhere('COALESCE(a.discount_amount, 0) >= :mindAmt', { mindAmt: (q as any).minDiscountAmount });
+    }
+    if ((q as any).hasDiscount === 'true') {
+      qb.andWhere('(COALESCE(a.discount_percent,0) > 0 OR COALESCE(a.discount_amount,0) > 0)');
     }
 
     // boolean filters
@@ -188,7 +192,12 @@ export class ApartmentsService {
     // Sorting
     const sort = (q as any).sort as string | undefined;
     if (sort === 'discount_desc') {
-      qb.orderBy('a.discount_percent', 'DESC').addOrderBy('a.created_at', 'DESC');
+      // Sắp xếp theo giá trị VND giảm thực tế: percent * price hoặc discount_amount
+      qb.orderBy(`CASE 
+        WHEN COALESCE(a.discount_percent,0) > 0 THEN (CAST(a.rent_price as DECIMAL(12,2)) * a.discount_percent / 100)
+        WHEN COALESCE(a.discount_amount,0) > 0 THEN CAST(a.discount_amount as DECIMAL(12,2))
+        ELSE 0 END`, 'DESC')
+        .addOrderBy('a.created_at', 'DESC');
     } else {
       qb.orderBy('a.id', 'DESC');
     }

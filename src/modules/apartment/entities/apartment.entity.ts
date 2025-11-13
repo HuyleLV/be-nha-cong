@@ -108,6 +108,10 @@ export class Apartment {
   discountPercent?: number | null;
   // Ưu đãi theo phần trăm (0-100). Null nếu không có ưu đãi.
 
+  @Column({ name: 'discount_amount', type: 'numeric', precision: 12, scale: 2, nullable: true })
+  discountAmount?: string | null;
+  // Ưu đãi cố định theo số tiền (VND). Numeric string để đồng bộ FE. Null nếu không có.
+
   @Column({ default: 'draft', length: 20 })
   status: ApartmentStatus;
   // Trạng thái tin: draft/published/archived.

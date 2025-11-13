@@ -71,6 +71,10 @@ export class CreateApartmentDto {
   @IsOptional() @IsInt() @Min(0) @Max(100)
   discountPercent?: number;
 
+  @ApiProperty({ required: false, description: 'Ưu đãi cố định theo số tiền (numeric string VND)' })
+  @IsOptional() @IsString()
+  discountAmount?: string; // dùng string để thống nhất kiểu với rentPrice
+
   @ApiProperty({ enum: ['draft','published','archived'], default: 'draft' })
   @IsOptional() @IsEnum(['draft','published','archived'])
   status?: ApartmentStatus = 'draft';
