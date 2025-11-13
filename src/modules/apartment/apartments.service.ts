@@ -85,7 +85,6 @@ export class ApartmentsService {
     const limit = q.limit ?? 20;
 
     const qb = this.repo.createQueryBuilder('a')
-      .orderBy('a.id', 'DESC')
       .take(limit)
       .skip((page - 1) * limit);
 
@@ -130,11 +129,19 @@ export class ApartmentsService {
     }
     if (q.buildingId) qb.andWhere('a.building_id = :bid', { bid: q.buildingId });
     if (q.status) qb.andWhere('a.status = :st', { st: q.status });
+    if ((q as any).floorNumber != null) qb.andWhere('a.floor_number = :fn', { fn: (q as any).floorNumber });
     if (q.bedrooms != null) qb.andWhere('a.bedrooms >= :bed', { bed: q.bedrooms });
     if (q.bathrooms != null) qb.andWhere('a.bathrooms >= :bath', { bath: q.bathrooms });
     if (q.livingRooms != null) qb.andWhere('a.living_rooms >= :lr', { lr: q.livingRooms });
     if (q.minPrice != null) qb.andWhere('a.rent_price >= :minp', { minp: q.minPrice });
     if (q.maxPrice != null) qb.andWhere('a.rent_price <= :maxp', { maxp: q.maxPrice });
+
+    // Discount filters
+    if ((q as any).minDiscount != null) {
+      qb.andWhere('COALESCE(a.discount_percent, 0) >= :mind', { mind: (q as any).minDiscount });
+    } else if ((q as any).hasDiscount === 'true') {
+      qb.andWhere('COALESCE(a.discount_percent, 0) > 0');
+    }
 
     // boolean filters
     const asBool = (v?: string) => (v === 'true' ? true : v === 'false' ? false : undefined);
@@ -178,7 +185,15 @@ export class ApartmentsService {
       );
     }
 
-  const [items, total] = await qb.getManyAndCount();
+    // Sorting
+    const sort = (q as any).sort as string | undefined;
+    if (sort === 'discount_desc') {
+      qb.orderBy('a.discount_percent', 'DESC').addOrderBy('a.created_at', 'DESC');
+    } else {
+      qb.orderBy('a.id', 'DESC');
+    }
+
+    const [items, total] = await qb.getManyAndCount();
 
     // === favorited map ===
     const favSet = await this.getFavIdSet(currentUserId, items.map(i => i.id));

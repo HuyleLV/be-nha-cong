@@ -71,6 +71,13 @@ export class QueryApartmentDto {
   @IsEnum(['draft','published','archived'])
   status?: ApartmentStatus;
 
+  @ApiPropertyOptional({ description: 'lọc theo tầng cụ thể (>=1)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  floorNumber?: number;
+
   // quick boolean filters
   @ApiPropertyOptional() 
   @IsOptional() 
@@ -158,4 +165,16 @@ export class QueryApartmentDto {
   @IsOptional()
   @Type(() => Number)
   minImages?: number;
+
+  @ApiPropertyOptional({ description: 'lọc ưu đãi: có ưu đãi (>0%)' })
+  @IsOptional() @IsBooleanString()
+  hasDiscount?: string;
+
+  @ApiPropertyOptional({ description: 'lọc ưu đãi tối thiểu (%)' })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1)
+  minDiscount?: number;
+
+  @ApiPropertyOptional({ description: 'sắp xếp', enum: ['discount_desc'] })
+  @IsOptional() @IsString()
+  sort?: 'discount_desc' | string;
 }

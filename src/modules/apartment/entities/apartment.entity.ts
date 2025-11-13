@@ -104,6 +104,10 @@ export class Apartment {
   currency: string;
   // Đơn vị tiền tệ (mặc định VND).
 
+  @Column({ name: 'discount_percent', type: 'int', unsigned: true, nullable: true })
+  discountPercent?: number | null;
+  // Ưu đãi theo phần trăm (0-100). Null nếu không có ưu đãi.
+
   @Column({ default: 'draft', length: 20 })
   status: ApartmentStatus;
   // Trạng thái tin: draft/published/archived.

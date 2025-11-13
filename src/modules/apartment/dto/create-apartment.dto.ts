@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray, IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsPositive,
-  IsString, MaxLength, Min, ArrayMaxSize
+  IsString, Max, MaxLength, Min, ArrayMaxSize
 } from 'class-validator';
 import { ApartmentStatus } from '../entities/apartment.entity';
 
@@ -66,6 +66,10 @@ export class CreateApartmentDto {
 
   @ApiProperty({ default: 'VND' }) @IsOptional() @IsString() @MaxLength(10)
   currency?: string = 'VND';
+
+  @ApiProperty({ required: false, description: 'Ưu đãi (%), 0-100' })
+  @IsOptional() @IsInt() @Min(0) @Max(100)
+  discountPercent?: number;
 
   @ApiProperty({ enum: ['draft','published','archived'], default: 'draft' })
   @IsOptional() @IsEnum(['draft','published','archived'])
