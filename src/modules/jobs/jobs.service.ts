@@ -5,6 +5,7 @@ import { Job } from './entities/job.entity';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { JobApplication } from './entities/job-application.entity';
+import { UpdateJobApplicationDto } from './dto/update-job-application.dto';
 import { CreateJobApplicationDto } from './dto/create-job-application.dto';
 
 const toSlug = (s: string) => (s||'')
@@ -95,5 +96,63 @@ export class JobsService {
     });
     if (!app.name) throw new BadRequestException('Name is required');
     return this.appRepo.save(app);
+  }
+
+  async listApplications(params?: { jobId?: number; page?: number; limit?: number; status?: string; q?: string }) {
+    const page = params?.page ?? 1;
+    const limit = Math.min(100, params?.limit ?? 20);
+    const qb = this.appRepo.createQueryBuilder('a').orderBy('a.createdAt','DESC')
+      .take(limit).skip((page-1)*limit);
+    if (params?.jobId) qb.andWhere('a.jobId = :jid', { jid: params.jobId });
+    if (params?.status) qb.andWhere('a.status = :st', { st: params.status });
+    if (params?.q) {
+      const kw = `%${params.q.toLowerCase()}%`;
+      qb.andWhere('(LOWER(a.name) LIKE :kw OR LOWER(a.email) LIKE :kw OR LOWER(a.phone) LIKE :kw)', { kw });
+    }
+    const [items,total] = await qb.getManyAndCount();
+    return { items, meta: { total, page, limit, totalPages: Math.ceil(total/limit) } };
+  }
+
+  async applicationCounts(jobIds: number[]) {
+    if (!jobIds || jobIds.length === 0) return {};
+    const rows = await this.appRepo.createQueryBuilder('a')
+      .select('a.jobId', 'jobId')
+      .addSelect('a.status', 'status')
+      .addSelect('COUNT(*)', 'cnt')
+      .where('a.jobId IN (:...ids)', { ids: jobIds })
+      .groupBy('a.jobId')
+      .addGroupBy('a.status')
+      .getRawMany();
+    const map: Record<number, { total: number; byStatus: Record<string, number> }> = {};
+    for (const r of rows) {
+      const jid = Number(r.jobId);
+      const st = r.status || 'new';
+      const cnt = Number(r.cnt);
+      if (!map[jid]) map[jid] = { total: 0, byStatus: {} };
+      map[jid].byStatus[st] = cnt;
+      map[jid].total += cnt;
+    }
+    return map;
+  }
+
+  async getApplication(id: number) {
+    const app = await this.appRepo.findOne({ where: { id } });
+    if (!app) throw new NotFoundException('Application not found');
+    return app;
+  }
+
+  async updateApplication(id: number, dto: UpdateJobApplicationDto) {
+    const app = await this.appRepo.findOne({ where: { id } });
+    if (!app) throw new NotFoundException('Application not found');
+    if (dto.status) app.status = dto.status;
+    if (typeof dto.internalNote !== 'undefined') app.internalNote = dto.internalNote ?? null;
+    return this.appRepo.save(app);
+  }
+
+  async removeApplication(id: number) {
+    const app = await this.appRepo.findOne({ where: { id } });
+    if (!app) throw new NotFoundException('Application not found');
+    await this.appRepo.delete(id);
+    return { success: true };
   }
 }

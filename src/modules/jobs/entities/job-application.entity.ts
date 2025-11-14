@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Job } from './job.entity';
 
 @Entity('job_applications')
@@ -30,6 +30,18 @@ export class JobApplication {
   @Column({ type: 'text', nullable: true })
   message?: string | null;
 
+  // Trạng thái xử lý: new (mới), reviewed (đã xem), contacted (đã liên hệ), rejected (từ chối)
+  @Index()
+  @Column({ type: 'varchar', length: 20, default: 'new' })
+  status: string;
+
+  // Ghi chú nội bộ cho HR
+  @Column({ type: 'text', nullable: true })
+  internalNote?: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }
