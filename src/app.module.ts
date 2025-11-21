@@ -14,6 +14,8 @@ import { LocationsModule } from './modules/locations/locations.module';
 import { ApartmentsModule } from './modules/apartment/apartments.module';
 import { PartnersModule } from './modules/partners/partners.module';
 import { BuildingsModule } from './modules/building/building.module';
+import { BedsModule } from './modules/bed/bed.module';
+import { AssetsModule } from './modules/asset/asset.module';
 import { OwnershipsModule } from './modules/ownership/ownership.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { View } from 'typeorm';
@@ -64,6 +66,8 @@ import { JobsModule } from './modules/jobs/jobs.module';
     ApartmentsModule,
     PartnersModule,
     BuildingsModule,
+  BedsModule,
+    AssetsModule,
     OwnershipsModule,
     FavoritesModule,
     ViewingsModule,

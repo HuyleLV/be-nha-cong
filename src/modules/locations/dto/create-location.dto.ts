@@ -9,7 +9,7 @@ export class CreateLocationDto {
   @IsOptional() @IsString()
   slug?: string; 
 
-  @IsEnum(['Province', 'City', 'District'])
+  @IsEnum(['Province', 'City', 'District', 'Street'])
   level: LocationLevel;
 
   @IsOptional() @Type(() => Number) @IsInt()

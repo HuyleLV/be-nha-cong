@@ -4,7 +4,7 @@ import { Type } from 'class-transformer';
 import type { LocationLevel } from '../entities/locations.entity';
 
 export class QueryLocationDto {
-  @IsOptional() @IsEnum(['Province','City','District'])
+  @IsOptional() @IsEnum(['Province','City','District','Street'])
   level?: LocationLevel;
 
   @IsOptional() @Type(() => Number) @IsInt()

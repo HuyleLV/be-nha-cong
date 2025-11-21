@@ -122,6 +122,9 @@ export class Apartment {
 
   @Column({ name: 'images', type: 'simple-json', nullable: true })
   images?: string[];
+  
+  @Column({ name: 'deposit_amount', type: 'numeric', precision: 12, scale: 2, nullable: true })
+  depositAmount?: string | null;
   // Danh sách URL ảnh (gallery). BE đảm bảo videoUrl nếu có sẽ đứng đầu thông qua logic riêng.
 
 

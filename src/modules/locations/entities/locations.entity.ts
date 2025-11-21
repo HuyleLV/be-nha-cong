@@ -9,7 +9,7 @@ import {
     JoinColumn
   } from 'typeorm';
   
-export type LocationLevel = 'Province' | 'City' | 'District';
+export type LocationLevel = 'Province' | 'City' | 'District' | 'Street';
 
 @Entity('locations')
 export class Location {
@@ -23,7 +23,7 @@ export class Location {
   @Column({ length: 200, unique: true, nullable: true })
   slug: string;
 
-  @Column({ type: 'enum', enum: ['Province', 'City', 'District']})
+  @Column({ type: 'enum', enum: ['Province', 'City', 'District', 'Street']})
   level: LocationLevel;
   
   @ManyToOne(() => Location, { onDelete: 'CASCADE', nullable: true })
@@ -38,4 +38,7 @@ export class Location {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ name: 'created_by', nullable: true })
+  createdBy?: number | null;
 }

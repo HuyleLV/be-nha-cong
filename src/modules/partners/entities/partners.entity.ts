@@ -7,6 +7,7 @@ import {
   } from 'typeorm';
   
   export type PartnerRole = 'landlord' | 'customer' | 'operator';
+  export type PartnerStatus = 'pending' | 'approved' | 'cancelled';
   
   @Entity('partners')
   export class Partners {
@@ -30,6 +31,10 @@ import {
     @Column({ type: 'text', nullable: true })
     need?: string;
   
+    @Column({ type: 'enum', enum: ['pending', 'approved', 'cancelled'], default: 'pending' })
+    @Index()
+    status: PartnerStatus;
+
     @CreateDateColumn()
     createdAt: Date;
   }

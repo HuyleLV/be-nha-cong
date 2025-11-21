@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Apartment } from './entities/apartment.entity';
@@ -75,14 +75,32 @@ export class ApartmentsService {
       status: dto.status ?? 'draft',
       createdById: userId ?? null,
     });
-    return this.repo.save(entity);
+
+    // Save entity first to obtain generated id
+    const saved = await this.repo.save(entity);
+
+    // Ensure roomCode equals numeric id (string) when not explicitly provided
+    if (!saved.roomCode) {
+      saved.roomCode = String(saved.id);
+      await this.repo.save(saved);
+    }
+
+    return saved;
   }
 
   /** Danh sách + cờ favorited cho user hiện tại (nếu có) */
-  async findAll(q: QueryApartmentDto, currentUserId?: number) {
+  async findAll(q: QueryApartmentDto, user?: any) {
     console.log(123);
     const page = q.page ?? 1;
-    const limit = q.limit ?? 20;
+    // Default limit: allow admin to fetch the full dataset when they don't provide a limit.
+    // For regular users/hosts keep the default paging of 20.
+    let limit = q.limit ?? 20;
+    if (user && (user.role === 'admin' || user.role === 'Admin')) {
+      // If admin did not pass a limit, set a very large limit so admin UI sees the full list.
+      if (q.limit == null) limit = 1000000;
+    }
+
+    const currentUserId = user?.id ?? user?.sub ?? undefined;
 
     const qb = this.repo.createQueryBuilder('a')
       .take(limit)
@@ -202,10 +220,17 @@ export class ApartmentsService {
       qb.orderBy('a.id', 'DESC');
     }
 
+    // If caller is a host, restrict to apartments created by that host
+    if (user && (user.role === 'host' || user.role === 'Host')) {
+      const uid = currentUserId ?? null;
+      // DB column is named `created_by` (entity maps createdById -> created_by)
+      if (uid) qb.andWhere('a.created_by = :uid', { uid });
+    }
+
     const [items, total] = await qb.getManyAndCount();
 
     // === favorited map ===
-    const favSet = await this.getFavIdSet(currentUserId, items.map(i => i.id));
+  const favSet = await this.getFavIdSet(currentUserId, items.map(i => i.id));
     const itemsWithFav = items.map(i => ({ ...i, favorited: favSet.has(i.id) }));
 
     return {
@@ -321,9 +346,9 @@ export class ApartmentsService {
   
 
   /** Chi tiết + cờ favorited (JOIN với favorite) */
-  async findOneByIdOrSlug(idOrSlug: number | string, currentUserId?: number) {
+  async findOneByIdOrSlug(idOrSlug: number | string, user?: any) {
     const qb = this.repo.createQueryBuilder('a');
-    
+
     // Điều kiện tìm theo id hoặc slug
     if (typeof idOrSlug === 'number') {
       qb.where('a.id = :id', { id: idOrSlug });
@@ -331,9 +356,18 @@ export class ApartmentsService {
       qb.where('a.slug = :slug', { slug: String(idOrSlug) });
     }
 
-  const apt = await qb.getOne();
+    const apt = await qb.getOne();
     if (!apt) throw new NotFoundException('Apartment không tồn tại');
 
+    // If caller is a host, ensure they own this apartment
+    if (user && (user.role === 'host' || user.role === 'Host' || user.role === 'chu_nha' || user.role === 'owner')) {
+      const uid = user.id ?? user.sub ?? null;
+      if (uid && String(apt.createdById) !== String(uid)) {
+        throw new ForbiddenException('Không có quyền xem tài nguyên này');
+      }
+    }
+
+    const currentUserId = user?.id ?? user?.sub ?? undefined;
     // Lấy cờ favorited
     const favSet = await this.getFavIdSet(currentUserId, [apt.id]);
     const favorited = favSet.has(apt.id);
@@ -354,7 +388,7 @@ export class ApartmentsService {
     return { ...apt, favorited, location: location || undefined, contactName } as any;
   }
 
-  async update(id: number, dto: UpdateApartmentDto) {
+  async update(id: number, dto: UpdateApartmentDto, userId?: number, userRole?: string) {
   const apt = await this.repo.findOne({ where: { id } });
     if (!apt) throw new NotFoundException('Apartment không tồn tại');
 
@@ -375,13 +409,25 @@ export class ApartmentsService {
       images = images.filter((u) => u !== nextCover);
     }
 
+    // If caller is host, enforce ownership
+    if (userRole && (userRole === 'host' || userRole === 'Host' || userRole === 'chu_nha' || userRole === 'owner')) {
+      const uid = userId ?? null;
+      if (String(apt.createdById) !== String(uid)) throw new ForbiddenException('Không có quyền sửa tài nguyên này');
+    }
+
     Object.assign(apt, { ...dto, slug, images, coverImageUrl: nextCover as any });
     return this.repo.save(apt);
   }
 
-  async remove(id: number) {
+  async remove(id: number, userId?: number, userRole?: string) {
     const ok = await this.repo.findOne({ where: { id } });
     if (!ok) throw new NotFoundException('Apartment không tồn tại');
+
+    if (userRole && (userRole === 'host' || userRole === 'Host' || userRole === 'chu_nha' || userRole === 'owner')) {
+      const uid = userId ?? null;
+      if (String(ok.createdById) !== String(uid)) throw new ForbiddenException('Không có quyền xóa tài nguyên này');
+    }
+
     await this.repo.delete(id);
     return { success: true };
   }

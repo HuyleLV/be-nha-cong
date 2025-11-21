@@ -14,6 +14,7 @@ import {
   import { CreatePartnerDto } from './dto/create-partner.dto';
   
   type Role = 'landlord' | 'customer' | 'operator';
+  type Status = 'pending' | 'approved' | 'cancelled';
   
   @Controller('partners')
   export class PartnersController {
@@ -24,12 +25,14 @@ import {
       @Query('page') page?: string,
       @Query('limit') limit?: string,
       @Query('role') role?: Role,
+      @Query('status') status?: Status,
       @Query('q') q?: string,
     ) {
       const res = await this.service.findAll({
         page: page ? Number(page) : undefined,
         limit: limit ? Number(limit) : undefined,
         role,
+        status,
         q,
       });
   
@@ -62,6 +65,18 @@ import {
       return { ok: true, data: lead };
     }
   
+    @Post(':id/approve')
+    async approve(@Param('id') id: string) {
+      const result = await this.service.approve(+id);
+      return { ok: true, ...result } as any;
+    }
+
+    @Post(':id/cancel')
+    async cancel(@Param('id') id: string) {
+      const result = await this.service.cancel(+id);
+      return { ok: true, ...result } as any;
+    }
+
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     async remove(@Param('id') id: string) {
