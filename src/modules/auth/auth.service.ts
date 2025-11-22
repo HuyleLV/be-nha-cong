@@ -206,10 +206,16 @@ export class AuthService {
     if (!user || !user.id) {
       return { message: 'Tài khoản hoặc mật khẩu không đúng' };
     }
-    const effectiveRole = user.role || 'customer';
+    // Chuẩn hoá role về canonical values: 'host', 'admin', 'customer' (fallback)
+    const rawRole = String(user.role || 'customer');
+    const rl = rawRole.toLowerCase();
+    let canonicalRole = 'customer';
+    if (rl === 'admin') canonicalRole = 'admin';
+    else if (rl === 'host' || rl === 'chu_nha' || rl === 'owner') canonicalRole = 'host';
+    else canonicalRole = rl || 'customer';
 
     const derivedName = user.name ?? (user.email ? user.email.split('@')[0] : undefined) ?? `User${user.id}`;
-    const payload: any = { sub: user.id, role: effectiveRole, name: derivedName };
+  const payload: any = { sub: user.id, role: canonicalRole, name: derivedName };
     if (user.email) payload.email = user.email;
     if (user.avatarUrl) payload.avatarUrl = user.avatarUrl;
     if (user.phone) payload.phone = user.phone;
@@ -225,7 +231,7 @@ export class AuthService {
         user: {
           id: user.id,
           email: user.email ?? null,
-          role: effectiveRole,
+          role: canonicalRole,
           name: derivedName,
           avatarUrl: user.avatarUrl ?? null,
           phone: user.phone ?? null,

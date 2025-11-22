@@ -10,6 +10,12 @@ export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
     if (err || !user) {
       return null;
     }
+
+    if (user && typeof user.role === 'string') {
+      const role = String(user.role).toLowerCase();
+      const isHostLike = role === 'host' || role === 'chu_nha';
+      if (isHostLike) return { ...user, role: 'user' };
+    }
     return user;
   }
 }
