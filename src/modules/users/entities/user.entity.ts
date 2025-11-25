@@ -74,7 +74,6 @@ export class User {
   phoneVerificationExpires?: Date | null;
 
   // ====== Referral / Affiliate ======
-  @Index({ unique: true })
   @Column({ length: 50, unique: true, nullable: true })
   referralCode: string;
 

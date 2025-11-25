@@ -130,8 +130,9 @@ export class LocationsService {
     if (level === 'City' && parent.level !== 'Province') {
       throw new BadRequestException('City parent must be a Province');
     }
-    if (level === 'District' && parent.level !== 'City') {
-      throw new BadRequestException('District parent must be a City');
+    // Allow District to have either a City or a Province as parent.
+    if (level === 'District' && parent.level !== 'City' && parent.level !== 'Province') {
+      throw new BadRequestException('District parent must be a City or a Province');
     }
     if (level === 'Street' && parent.level !== 'District') {
       throw new BadRequestException('Street parent must be a District');
