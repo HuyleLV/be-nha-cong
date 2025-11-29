@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Param, Post, Body, Patch, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Param, Post, Body, Patch, Delete, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { ok } from '../../common/utils/response';
@@ -10,35 +10,39 @@ import { Roles } from '../auth/roles.decorator';
 
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  async findAll(@Query() query: PaginationQueryDto) {
-    const { items, meta } = await this.usersService.findAll(query);
+  @Roles('admin', 'host')
+  async findAll(@Req() req: any, @Query() query: any) {
+    const { items, meta } = await this.usersService.findAll(query, req.user);
     return ok(items, meta);
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    const user = await this.usersService.findOne(id);
+  @Roles('admin', 'host')
+  async findOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+    const user = await this.usersService.findOne(id, req.user);
     return ok(user);
   }
 
   @Post()
-  async create(@Body() dto: CreateUserDto) {
-    const created = await this.usersService.create(dto);
+  @Roles('admin', 'host')
+  async create(@Req() req: any, @Body() dto: CreateUserDto) {
+    const created = await this.usersService.create(dto, req.user);
     return ok(created);
   }
 
   @Patch(':id')
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
-    const updated = await this.usersService.update(id, dto);
+  @Roles('admin','host')
+  async update(@Req() req: any, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
+    const updated = await this.usersService.update(id, dto, req.user);
     return ok(updated);
   }
 
   @Delete(':id')
+  @Roles('admin')
   async remove(@Param('id', ParseIntPipe) id: number) {
     const result = await this.usersService.remove(id);
     return ok(result);

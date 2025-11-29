@@ -62,6 +62,8 @@ import { JobsModule } from './modules/jobs/jobs.module';
     UsersModule,
     BlogModule,
     AuthModule,
+    // Deposits module
+    require('./modules/deposits/deposits.module').DepositsModule,
     LocationsModule,
     ApartmentsModule,
     PartnersModule,

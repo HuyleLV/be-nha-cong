@@ -1,4 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
@@ -8,6 +9,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   app.enableCors({
     origin: true,

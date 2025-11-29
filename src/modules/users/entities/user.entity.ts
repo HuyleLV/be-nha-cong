@@ -4,7 +4,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-  Index
+  Index,
 } from 'typeorm';
 
 export enum Gender {
@@ -17,6 +17,15 @@ export enum UserRole {
   CUSTOMER = 'customer', // khách hàng
   OWNER = 'host',       // chủ nhà
   ADMIN = 'admin',       // quản trị
+}
+
+export enum CustomerStatus {
+  NEW = 'new',
+  APPOINTMENT = 'appointment',
+  SALES = 'sales',
+  DEPOSIT_FORM = 'deposit_form',
+  CONTRACT = 'contract',
+  FAILED = 'failed',
 }
 
 @Entity({ name: 'users' })
@@ -45,6 +54,12 @@ export class User {
 
   @Column({ length: 500, nullable: true })
   avatarUrl?: string;
+
+  @Column({ length: 500, nullable: true })
+  idCardFront?: string;
+
+  @Column({ length: 500, nullable: true })
+  idCardBack?: string;
 
   @Column({ length: 255, nullable: true })
   address?: string;
@@ -99,4 +114,24 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // Nếu user này là khách hàng được quản lý bởi một chủ nhà, lưu ownerId
+  @Index()
+  @Column({ nullable: true })
+  ownerId?: number;
+
+  @Column({ length: 50, nullable: true })
+  idCardNumber?: string;
+
+  @Column({ type: 'date', nullable: true })
+  idIssueDate?: Date;
+
+  @Column({ length: 255, nullable: true })
+  idIssuePlace?: string;
+
+  @Column({ type: 'text', nullable: true })
+  note?: string;
+
+  @Column({ type: 'enum', enum: CustomerStatus, nullable: true })
+  customerStatus?: CustomerStatus;
 }
