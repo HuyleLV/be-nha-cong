@@ -29,7 +29,8 @@ import { ZaloModule } from '../zalo/zalo.module';
         return {
           secret,
           signOptions: {
-            expiresIn: cfg.get<string>('JWT_EXPIRES_IN') ?? '2h',
+            // Extend default token lifetime to 24 hours unless overridden in env
+            expiresIn: cfg.get<string>('JWT_EXPIRES_IN') ?? '24h',
           },
         };
       },

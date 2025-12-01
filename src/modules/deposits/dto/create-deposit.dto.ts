@@ -1,4 +1,5 @@
 import { IsEnum, IsInt, IsOptional, IsString, IsNumber, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
 import { DepositStatus } from '../entities/deposit.entity';
 
 export class CreateDepositDto {
@@ -8,14 +9,17 @@ export class CreateDepositDto {
 
   @IsOptional()
   @IsInt()
+  @Type(() => Number)
   buildingId?: number;
 
   @IsOptional()
   @IsInt()
+  @Type(() => Number)
   apartmentId?: number;
 
   @IsOptional()
   @IsInt()
+  @Type(() => Number)
   customerId?: number;
 
   @IsOptional()
@@ -24,14 +28,17 @@ export class CreateDepositDto {
 
   @IsOptional()
   @IsInt()
+  @Type(() => Number)
   occupantsCount?: number;
 
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   rentAmount?: number;
 
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   depositAmount?: number;
 
   @IsOptional()

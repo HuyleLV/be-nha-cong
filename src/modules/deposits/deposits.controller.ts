@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Req, Query } from '@nestjs/common';
 import { DepositsService } from './deposits.service';
 import { ok } from '../../common/utils/response';
 import { CreateDepositDto } from './dto/create-deposit.dto';
@@ -14,9 +14,11 @@ export class DepositsController {
 
   @Get()
   @Roles('admin','host')
-  async findAll() {
-    const items = await this.svc.findAll();
-    return ok(items);
+  async findAll(@Query() query: any) {
+    const page = query?.page ? Number(query.page) : undefined;
+    const limit = query?.limit ? Number(query.limit) : undefined;
+    const res = await this.svc.findAll({ page, limit });
+    return ok(res.items, { total: res.total, page: res.page, limit: res.limit });
   }
 
   @Get(':id')
@@ -29,6 +31,10 @@ export class DepositsController {
   @Post()
   @Roles('admin','host')
   async create(@Req() req: any, @Body() dto: CreateDepositDto) {
+    // Debug log to verify incoming payload (customerId should be present when selected in FE)
+    // Remove or guard this in production
+    // eslint-disable-next-line no-console
+    console.log('DepositsController.create dto:', dto);
     const created = await this.svc.create(dto);
     return ok(created);
   }

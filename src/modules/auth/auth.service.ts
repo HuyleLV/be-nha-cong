@@ -223,11 +223,12 @@ export class AuthService {
     if (typeof user.phoneVerified !== 'undefined') payload.phone_verified = user.phoneVerified ? 1 : 0;
     if (typeof user.emailVerified !== 'undefined') payload.email_verified = user.emailVerified ? 1 : 0;
   
-    try {
+      try {
       const token = this.jwtService.sign(payload);
       return {
         accessToken: token,
-        expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+        // read configured expiry or default to 24h
+        expiresIn: this.config.get<string>('JWT_EXPIRES_IN') || process.env.JWT_EXPIRES_IN || '24h',
         user: {
           id: user.id,
           email: user.email ?? null,

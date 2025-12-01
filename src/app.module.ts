@@ -64,12 +64,17 @@ import { JobsModule } from './modules/jobs/jobs.module';
     AuthModule,
     // Deposits module
     require('./modules/deposits/deposits.module').DepositsModule,
+  // Contracts module
+  require('./modules/contracts/contracts.module').ContractsModule,
     LocationsModule,
     ApartmentsModule,
     PartnersModule,
     BuildingsModule,
-  BedsModule,
+    BedsModule,
     AssetsModule,
+    // Vehicles module
+    require('./modules/vehicles/vehicles.module').VehiclesModule,
+  require('./modules/services/services.module').ServicesModule,
     OwnershipsModule,
     FavoritesModule,
     ViewingsModule,

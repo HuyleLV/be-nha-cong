@@ -7,6 +7,7 @@ import { CreateViewingDto } from './dto/create-viewing.dto';
 import { UpdateViewingStatusDto } from './dto/update-viewing-status.dto';
 import { QueryViewingDto } from './dto/query-viewing.dto';
 import { Apartment } from '../apartment/entities/apartment.entity';
+import { Building } from '../building/entities/building.entity';
 import { ApartmentView } from './entities/apartment-view.entity';
 
 @Injectable()
@@ -106,6 +107,39 @@ export class ViewingsService {
     if (q.apartmentId) qb.andWhere('v.apartmentId = :aid', { aid: q.apartmentId });
     if (q.buildingId) qb.andWhere('a.buildingId = :bid', { bid: q.buildingId });
   if (q.status) qb.andWhere('v.status = :st', { st: q.status });
+    if (q.q) {
+      const kw = `%${String(q.q).toLowerCase()}%`;
+      qb.andWhere('(LOWER(v.name) LIKE :kw OR LOWER(v.email) LIKE :kw OR LOWER(v.phone) LIKE :kw)', { kw });
+    }
+
+    const [items, total] = await qb.getManyAndCount();
+    return {
+      items,
+      meta: { total, page, limit, pageCount: Math.ceil(total / limit) },
+    };
+  }
+
+  /** Host / Owner list: returns viewings for apartments/buildings owned by the caller
+   *  This endpoint is intended to be used by hosts (role 'host') to view bookings on their assets.
+   */
+  async hostFindAll(q: QueryViewingDto, userId: number) {
+    const page = q.page ?? 1;
+    const limit = q.limit ?? 500;
+
+    const qb = this.repo.createQueryBuilder('v')
+      // join Apartment and Building to allow ownership checks
+      .leftJoin(Apartment, 'a', 'a.id = v.apartmentId')
+      .leftJoin(Building, 'b', 'b.id = a.buildingId')
+      .orderBy('v.createdAt', 'DESC')
+      .take(limit)
+      .skip((page - 1) * limit);
+
+    // restrict to assets owned by the host
+    qb.andWhere('(a.created_by = :uid OR b.created_by = :uid)', { uid: userId });
+
+    if (q.apartmentId) qb.andWhere('v.apartmentId = :aid', { aid: q.apartmentId });
+    if (q.buildingId) qb.andWhere('a.buildingId = :bid', { bid: q.buildingId });
+    if (q.status) qb.andWhere('v.status = :st', { st: q.status });
     if (q.q) {
       const kw = `%${String(q.q).toLowerCase()}%`;
       qb.andWhere('(LOWER(v.name) LIKE :kw OR LOWER(v.email) LIKE :kw OR LOWER(v.phone) LIKE :kw)', { kw });

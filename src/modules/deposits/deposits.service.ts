@@ -1,17 +1,43 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Deposit } from './entities/deposit.entity';
 import { CreateDepositDto } from './dto/create-deposit.dto';
 import { UpdateDepositDto } from './dto/update-deposit.dto';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class DepositsService {
-  constructor(@InjectRepository(Deposit) private readonly repo: Repository<Deposit>) {}
+  constructor(
+    @InjectRepository(Deposit) private readonly repo: Repository<Deposit>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+  ) {}
 
-  async findAll() {
-    const items = await this.repo.find({ order: { createdAt: 'DESC' } });
-    return items;
+  /**
+   * Find deposits with optional pagination. Returns { items, total, page, limit }
+   */
+  async findAll(params?: { page?: number; limit?: number }) {
+    const page = Math.max(1, Number(params?.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(params?.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await this.repo.findAndCount({ order: { createdAt: 'DESC' }, skip, take: limit });
+
+    // Fetch customer names for items that have customerId
+    const custIds = Array.from(new Set(items.filter(i => i.customerId).map(i => i.customerId!)));
+    let userMap: Record<number, { id: number; name?: string; phone?: string }> = {};
+    if (custIds.length > 0) {
+      const users = await this.userRepo.find({ where: { id: In(custIds) } });
+      for (const u of users) userMap[u.id] = { id: u.id, name: u.name, phone: u.phone };
+    }
+
+    const mapped = items.map(i => ({
+      ...i,
+      customerName: i.customerId ? (userMap[i.customerId]?.name ?? null) : null,
+      customerPhone: i.customerId ? (userMap[i.customerId]?.phone ?? null) : null,
+    }));
+
+    return { items: mapped, total, page, limit };
   }
 
   async findOne(id: number) {

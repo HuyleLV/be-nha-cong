@@ -43,6 +43,15 @@ export class ViewingsController {
     return this.svc.adminFindAll(q);
   }
 
+  /** Host: list bookings for apartments/buildings owned by the caller */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('host', 'admin')
+  @Get('host')
+  async hostList(@Query() q: QueryViewingDto, @Req() req: any) {
+    const userId = req?.user?.id ?? req?.user?.sub;
+    return this.svc.hostFindAll(q, userId);
+  }
+
   /** Admin: get detail */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
