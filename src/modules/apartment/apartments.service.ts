@@ -90,13 +90,11 @@ export class ApartmentsService {
 
   /** Danh sách + cờ favorited cho user hiện tại (nếu có) */
   async findAll(q: QueryApartmentDto, user?: any) {
-    console.log(123);
     const page = q.page ?? 1;
     // Default limit: allow admin to fetch the full dataset when they don't provide a limit.
     // For regular users/hosts keep the default paging of 20.
     let limit = q.limit ?? 20;
     if (user && (user.role === 'admin' || user.role === 'Admin')) {
-      // If admin did not pass a limit, set a very large limit so admin UI sees the full list.
       if (q.limit == null) limit = 1000000;
     }
 
@@ -219,9 +217,10 @@ export class ApartmentsService {
     } else {
       qb.orderBy('a.id', 'DESC');
     }
-
+    
     // If caller is a host, restrict to apartments created by that host
     if (user && (user.role === 'host' || user.role === 'Host')) {
+      console.log(123);
       const uid = currentUserId ?? null;
       // DB column is named `created_by` (entity maps createdById -> created_by)
       if (uid) qb.andWhere('a.created_by = :uid', { uid });

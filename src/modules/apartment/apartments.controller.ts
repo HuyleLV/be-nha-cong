@@ -18,6 +18,7 @@ export class ApartmentsController {
   @Get()
   findAll(@Query() q: QueryApartmentDto, @Req() req: any) {
     const user = req.user;
+    console.log('User in findAll:', user);
     return this.service.findAll(q, user);
   }
 
