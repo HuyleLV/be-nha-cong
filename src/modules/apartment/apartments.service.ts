@@ -57,7 +57,7 @@ export class ApartmentsService {
     return new Set(favs.map(f => f.apartmentId));
   }
 
-  async create(dto: CreateApartmentDto, userId?: number) {
+  async create(dto: CreateApartmentDto, userId?: number, userRole?: string) {
     await this.assertRefs(dto.locationId, dto.buildingId ?? null);
     const slug = await this.ensureUniqueSlug(dto.slug || dto.title);
 
@@ -67,6 +67,10 @@ export class ApartmentsService {
       ? [...new Set(dto.images.filter(Boolean))].filter((u) => u !== cover)
       : undefined;
 
+    const isAdmin = userRole && (userRole === 'admin' || userRole === 'Admin');
+    // approval default: admin-created -> approved by default, host-created -> not approved
+    const isApprovedVal = isAdmin ? (dto.isApproved ?? true) : false;
+
     const entity = this.repo.create({
       ...dto,
       slug,
@@ -74,6 +78,7 @@ export class ApartmentsService {
       currency: dto.currency ?? 'VND',
       status: dto.status ?? 'draft',
       createdById: userId ?? null,
+      isApproved: isApprovedVal,
     });
 
     // Save entity first to obtain generated id
@@ -99,6 +104,8 @@ export class ApartmentsService {
     }
 
     const currentUserId = user?.id ?? user?.sub ?? undefined;
+  const isAdminCaller = user && (user.role === 'admin' || user.role === 'Admin');
+  const isHostCaller = user && (user.role === 'host' || user.role === 'Host' || user.role === 'chu_nha' || user.role === 'owner');
 
     const qb = this.repo.createQueryBuilder('a')
       .take(limit)
@@ -145,6 +152,12 @@ export class ApartmentsService {
     }
     if (q.buildingId) qb.andWhere('a.building_id = :bid', { bid: q.buildingId });
     if (q.status) qb.andWhere('a.status = :st', { st: q.status });
+
+    // Public visibility: only show published AND approved apartments for non-admin, non-host callers
+    if (!isAdminCaller && !isHostCaller) {
+      qb.andWhere('a.status = :pub', { pub: 'published' });
+      qb.andWhere('a.is_approved = true');
+    }
     if ((q as any).floorNumber != null) qb.andWhere('a.floor_number = :fn', { fn: (q as any).floorNumber });
     if (q.bedrooms != null) qb.andWhere('a.bedrooms >= :bed', { bed: q.bedrooms });
     if (q.bathrooms != null) qb.andWhere('a.bathrooms >= :bath', { bath: q.bathrooms });
@@ -217,9 +230,9 @@ export class ApartmentsService {
     } else {
       qb.orderBy('a.id', 'DESC');
     }
-    
+
     // If caller is a host, restrict to apartments created by that host
-    if (user && (user.role === 'host' || user.role === 'Host')) {
+    if (isHostCaller) {
       console.log(123);
       const uid = currentUserId ?? null;
       // DB column is named `created_by` (entity maps createdById -> created_by)
@@ -269,6 +282,7 @@ export class ApartmentsService {
     // 3) Toàn bộ apartment published thuộc các quận đó (FULL entity)
     const rawApts = await this.repo.createQueryBuilder('a')
       .where('a.status = :st', { st: 'published' })
+      .andWhere('a.is_approved = true')
       .andWhere('a.location_id IN (:...ids)', { ids: districtIds })
       .orderBy('a.created_at', 'DESC')
       .getMany();
@@ -320,6 +334,7 @@ export class ApartmentsService {
     // Sử dụng subquery COUNT(f) gắn trực tiếp vào select để tránh lỗi alias join
     const qb = this.repo.createQueryBuilder('a')
       .where('a.status = :st', { st: 'published' })
+      .andWhere('a.is_approved = true')
       .addSelect((sub) => {
         return sub
           .select('COUNT(f.id)', 'favCount')
@@ -359,10 +374,20 @@ export class ApartmentsService {
     if (!apt) throw new NotFoundException('Apartment không tồn tại');
 
     // If caller is a host, ensure they own this apartment
-    if (user && (user.role === 'host' || user.role === 'Host' || user.role === 'chu_nha' || user.role === 'owner')) {
-      const uid = user.id ?? user.sub ?? null;
+    const isAdmin = user && (user.role === 'admin' || user.role === 'Admin');
+    const isHost = user && (user.role === 'host' || user.role === 'Host' || user.role === 'chu_nha' || user.role === 'owner');
+    const uid = user?.id ?? user?.sub ?? null;
+    if (isHost) {
       if (uid && String(apt.createdById) !== String(uid)) {
         throw new ForbiddenException('Không có quyền xem tài nguyên này');
+      }
+    }
+
+    // Public callers (non-admin and non-owner host) can only see apartments that are published AND approved
+    const isOwner = isHost && uid && String(apt.createdById) === String(uid);
+    if (!isAdmin && !isOwner) {
+      if (apt.status !== 'published' || !(apt as any).isApproved) {
+        throw new NotFoundException('Apartment không tồn tại');
       }
     }
 
@@ -412,6 +437,14 @@ export class ApartmentsService {
     if (userRole && (userRole === 'host' || userRole === 'Host' || userRole === 'chu_nha' || userRole === 'owner')) {
       const uid = userId ?? null;
       if (String(apt.createdById) !== String(uid)) throw new ForbiddenException('Không có quyền sửa tài nguyên này');
+    }
+
+    // Only admin may change approval flag
+    if (dto.isApproved !== undefined) {
+      const isAdmin = userRole && (userRole === 'admin' || userRole === 'Admin');
+      if (!isAdmin) {
+        throw new ForbiddenException('Không có quyền thay đổi trạng thái duyệt');
+      }
     }
 
     Object.assign(apt, { ...dto, slug, images, coverImageUrl: nextCover as any });

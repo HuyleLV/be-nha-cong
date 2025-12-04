@@ -112,6 +112,10 @@ export class Apartment {
   discountAmount?: string | null;
   // Ưu đãi cố định theo số tiền (VND). Numeric string để đồng bộ FE. Null nếu không có.
 
+  @Column({ name: 'commission_percent', type: 'int', unsigned: true, nullable: true })
+  commissionPercent?: number | null;
+  // Hoa hồng cho cộng tác viên (CTV) tính theo phần trăm 0-100. Null nếu không áp dụng.
+
   @Column({ default: 'draft', length: 20 })
   status: ApartmentStatus;
   // Trạng thái tin: draft/published/archived.
@@ -263,6 +267,10 @@ export class Apartment {
   @Column({ name: 'is_verified', type: 'bool', default: false })
   isVerified: boolean;
   // Đánh dấu tin đã được kiểm duyệt / xác minh (hiển thị tick xanh FE)
+
+  @Column({ name: 'is_approved', type: 'bool', default: false })
+  isApproved: boolean;
+  // Đánh dấu tin đã được duyệt bởi admin (tách biệt với `status`). Mặc định false.
 
   /* ========== Meta ========== */
   @Column({ name: 'created_by', type: 'bigint', nullable: true })

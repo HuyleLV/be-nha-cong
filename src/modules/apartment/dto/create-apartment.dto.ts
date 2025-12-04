@@ -75,6 +75,10 @@ export class CreateApartmentDto {
   @IsOptional() @IsString()
   discountAmount?: string; // dùng string để thống nhất kiểu với rentPrice
 
+  @ApiProperty({ required: false, description: 'Hoa hồng cho CTV (%) 0-100' })
+  @IsOptional() @IsInt() @Min(0) @Max(100)
+  commissionPercent?: number;
+
   @ApiProperty({ required: false, description: 'Tiền đặt cọc (numeric string, VND)' })
   @IsOptional() @IsString()
   depositAmount?: string;
@@ -199,4 +203,8 @@ export class CreateApartmentDto {
   @ApiProperty({ required: false, default: false })
   @IsOptional() @IsBoolean()
   isVerified?: boolean;
+
+  @ApiProperty({ required: false, default: false, description: 'Đã được duyệt bởi admin (true = đã duyệt)' })
+  @IsOptional() @IsBoolean()
+  isApproved?: boolean;
 }

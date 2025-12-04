@@ -48,7 +48,7 @@ export class ApartmentsController {
   @Post()
   create(@Body() dto: CreateApartmentDto, @Req() req: any) {
     const userId = req.user?.id ?? req.user?.sub ?? undefined;
-    return this.service.create(dto, userId);
+    return this.service.create(dto, userId, req.user?.role);
   }
 
   @UseGuards(OptionalJwtAuthGuard)

@@ -1,0 +1,131 @@
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { MeterReading } from './entities/meter-reading.entity';
+import { MeterReadingItem } from './entities/meter-reading-item.entity';
+import { CreateMeterReadingDto } from './dto/create-meter-reading.dto';
+
+@Injectable()
+export class MeterReadingService {
+  constructor(
+    @InjectRepository(MeterReading) private readonly repo: Repository<MeterReading>,
+    @InjectRepository(MeterReadingItem) private readonly itemRepo: Repository<MeterReadingItem>,
+  ) {}
+
+  async create(dto: CreateMeterReadingDto, userId?: number) {
+    // Create the parent entity first
+    const entity: any = this.repo.create({
+      buildingId: dto.buildingId,
+      apartmentId: dto.apartmentId,
+      meterType: dto.meterType,
+      period: dto.period,
+      readingDate: dto.readingDate,
+      createdBy: userId ?? null,
+    } as any);
+
+    const saved = await this.repo.save(entity);
+
+    // Explicitly create and save items linked to the saved meter reading.
+    // Doing this avoids cascade insertion problems in some TypeORM setups.
+    if (dto.items && dto.items.length) {
+      const newItems = (dto.items || []).map((it) => this.itemRepo.create({
+        meterReadingId: saved.id,
+        meterReading: saved,
+        name: it.name,
+        previousIndex: it.previousIndex ?? null,
+        newIndex: it.newIndex,
+        readingDate: it.readingDate ?? null,
+        images: it.images ?? null,
+      }));
+      const savedItems = await this.itemRepo.save(newItems);
+      (saved as any).items = savedItems;
+    } else {
+      (saved as any).items = [];
+    }
+
+    return saved;
+  }
+
+  async findAllByUser(userId: number) {
+    return this.repo.find({ where: { createdBy: userId }, relations: ['items'], order: { id: 'DESC' } });
+  }
+
+  async findOne(id: number, userId?: number) {
+    const ok = await this.repo.findOne({ where: { id }, relations: ['items'] });
+    if (!ok) throw new NotFoundException('Ghi chỉ số không tồn tại');
+    if (userId && String(ok.createdBy) !== String(userId)) throw new ForbiddenException('Không có quyền truy cập');
+    return ok;
+  }
+
+  async findLatest(apartmentId: number, meterType: 'electricity' | 'water', userId?: number) {
+    const qb = this.repo.createQueryBuilder('mr')
+      .leftJoinAndSelect('mr.items', 'it')
+      .where('mr.apartment_id = :apartmentId', { apartmentId })
+      .andWhere('mr.meter_type = :meterType', { meterType })
+      .orderBy('mr.reading_date', 'DESC')
+      .addOrderBy('mr.id', 'DESC')
+      .limit(1);
+    if (userId) qb.andWhere('mr.created_by = :uid', { uid: userId });
+    const latest = await qb.getOne();
+    if (!latest) return null;
+    if (userId && String(latest.createdBy) !== String(userId)) throw new ForbiddenException('Không có quyền truy cập');
+    return latest;
+  }
+
+  async update(id: number, dto: CreateMeterReadingDto, userId?: number) {
+    const existing = await this.repo.findOne({ where: { id }, relations: ['items'] });
+    if (!existing) throw new NotFoundException('Ghi chỉ số không tồn tại');
+    if (userId && String(existing.createdBy) !== String(userId)) throw new ForbiddenException('Không có quyền sửa');
+
+    existing.buildingId = dto.buildingId;
+    existing.apartmentId = dto.apartmentId;
+    existing.meterType = dto.meterType;
+    existing.period = dto.period;
+    existing.readingDate = dto.readingDate;
+
+    console.log('[MeterReadingService.update] id=', id, 'payload=', JSON.stringify(dto));
+
+    // Use a transaction to update parent and replace child items to avoid FK issues
+    const result = await this.repo.manager.transaction(async (manager) => {
+      // save parent (in case any parent fields changed)
+      const savedParent = await manager.save(MeterReading, existing as any);
+
+      // delete old items
+      await manager.delete(MeterReadingItem, { meterReadingId: id } as any);
+
+      let savedItems: any[] = [];
+      if (dto.items && dto.items.length) {
+        // prepare plain objects to insert with explicit meter_reading_id
+        const plainItems = (dto.items || []).map((it) => ({
+          meter_reading_id: id,
+          name: it.name,
+          previous_index: it.previousIndex ?? null,
+          new_index: it.newIndex,
+          reading_date: it.readingDate ?? null,
+          images: it.images ?? null,
+        }));
+
+        // use insert to avoid relation resolution issues
+        await manager.insert(MeterReadingItem, plainItems as any);
+
+        // fetch inserted items
+        savedItems = await manager.find(MeterReadingItem, { where: { meterReadingId: id } as any });
+        console.log('[MeterReadingService.update] savedItems=', JSON.stringify(savedItems));
+      }
+
+      // attach items to parent for return
+      (savedParent as any).items = savedItems;
+      return savedParent;
+    });
+
+    return result;
+  }
+
+  async remove(id: number, userId?: number) {
+    const existing = await this.repo.findOne({ where: { id } });
+    if (!existing) throw new NotFoundException('Ghi chỉ số không tồn tại');
+    if (userId && String(existing.createdBy) !== String(userId)) throw new ForbiddenException('Không có quyền xoá');
+    await this.repo.delete(id); // items will be removed by ON DELETE CASCADE
+    return { deleted: true };
+  }
+}

@@ -62,6 +62,10 @@ import { JobsModule } from './modules/jobs/jobs.module';
     UsersModule,
     BlogModule,
     AuthModule,
+  // Meter readings (host) module
+  require('./modules/meter-reading/meter-reading.module').MeterReadingModule,
+  // Invoices module
+  require('./modules/invoice/invoice.module').InvoiceModule,
     // Deposits module
     require('./modules/deposits/deposits.module').DepositsModule,
   // Contracts module
