@@ -1,4 +1,4 @@
-import { Controller, UseGuards, Req, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
+import { Controller, UseGuards, Req, Get, Post, Body, Param, Patch, Delete, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InvoiceService } from './invoice.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -14,9 +14,9 @@ export class InvoiceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('host', 'admin')
   @Get()
-  list(@Req() req: any) {
+  list(@Req() req: any, @Query() q: any) {
     const userId = req.user?.id ?? req.user?.sub ?? undefined;
-    return this.service.listByUser(userId);
+    return this.service.listByUser(userId, q);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -46,8 +46,22 @@ export class MeterReadingService {
     return saved;
   }
 
-  async findAllByUser(userId: number) {
-    return this.repo.find({ where: { createdBy: userId }, relations: ['items'], order: { id: 'DESC' } });
+  async findAllByUser(userId: number, params?: any) {
+    const qb = this.repo.createQueryBuilder('mr').leftJoinAndSelect('mr.items', 'it')
+      .where('mr.created_by = :uid', { uid: userId })
+      .orderBy('mr.id', 'DESC');
+
+    // pagination
+    const page = params?.page ? Number(params.page) : undefined;
+    const limit = params?.limit ? Number(params.limit) : 10;
+    if (!page) {
+      return qb.getMany();
+    }
+
+    const total = await qb.getCount();
+    const items = await qb.skip((page - 1) * limit).take(limit).getMany();
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    return { items, meta: { page, limit, totalPages, total } };
   }
 
   async findOne(id: number, userId?: number) {

@@ -45,9 +45,9 @@ export class MeterReadingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('host', 'admin')
   @Get()
-  list(@Req() req: any) {
+  list(@Req() req: any, @Query() q: any) {
     const userId = req.user?.id ?? req.user?.sub ?? undefined;
-    return this.service.findAllByUser(userId);
+    return this.service.findAllByUser(userId, q);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

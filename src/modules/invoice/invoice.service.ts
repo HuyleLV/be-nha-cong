@@ -48,8 +48,21 @@ export class InvoiceService {
     return saved;
   }
 
-  async listByUser(userId: number) {
-    return this.repo.find({ where: { createdBy: userId }, relations: ['items'], order: { id: 'DESC' } });
+  async listByUser(userId: number, params?: any) {
+    const qb = this.repo.createQueryBuilder('inv').leftJoinAndSelect('inv.items', 'it')
+      .where('inv.created_by = :uid', { uid: userId })
+      .orderBy('inv.id', 'DESC');
+
+    const page = params?.page ? Number(params.page) : undefined;
+    const limit = params?.limit ? Number(params.limit) : 10;
+    if (!page) {
+      return qb.getMany();
+    }
+
+    const total = await qb.getCount();
+    const items = await qb.skip((page - 1) * limit).take(limit).getMany();
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    return { items, meta: { page, limit, totalPages, total } };
   }
 
   async getOne(id: number, userId?: number) {

@@ -37,8 +37,18 @@ export class ThuChiService {
     const qb = this.repo.createQueryBuilder('t').leftJoinAndSelect('t.items', 'it');
     if (params?.buildingId) qb.andWhere('t.building_id = :buildingId', { buildingId: params.buildingId });
     if (params?.apartmentId) qb.andWhere('t.apartment_id = :apartmentId', { apartmentId: params.apartmentId });
-    const list = await qb.getMany();
-    return list;
+
+    const page = params?.page ? Number(params.page) : undefined;
+    const limit = params?.limit ? Number(params.limit) : 10;
+    if (!page) {
+      const list = await qb.getMany();
+      return list;
+    }
+
+    const total = await qb.getCount();
+    const items = await qb.skip((page - 1) * limit).take(limit).getMany();
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    return { items, meta: { page, limit, totalPages, total } };
   }
 
   async findOne(id: number) {

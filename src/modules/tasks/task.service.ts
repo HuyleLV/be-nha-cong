@@ -15,9 +15,13 @@ export class TaskService {
   }
 
   async findAll(query?: any) {
-    const qb = this.repo.createQueryBuilder('t').orderBy('t.createdAt','DESC');
-    const items = await qb.getMany();
-    return { items, total: items.length };
+    const page = Number(query?.page) || 1;
+    const limit = Number(query?.limit) || 20;
+    const qb = this.repo.createQueryBuilder('t').orderBy('t.created_at','DESC');
+    const total = await qb.getCount();
+    const items = await qb.skip((page - 1) * limit).take(limit).getMany();
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    return { items, meta: { page, limit, totalPages, total } };
   }
 
   async findOne(id: number) {
