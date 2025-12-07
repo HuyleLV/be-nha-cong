@@ -19,6 +19,16 @@ export enum ServicePriceType {
   QUANTITY_QUOTA = 'quantity_quota',
 }
 
+export enum ServiceUnit {
+  PHONG = 'phong',
+  GIUONG = 'giuong',
+  KWH = 'kwh',
+  M3 = 'm3',
+  M2 = 'm2',
+  XE = 'xe',
+  LUOT = 'luot',
+}
+
 @Entity('services')
 export class Service {
   @PrimaryGeneratedColumn()
@@ -36,6 +46,12 @@ export class Service {
 
   @Column({ name: 'tax_rate', type: 'decimal', precision: 5, scale: 2, default: 0 })
   taxRate: string;
+
+  @Column({ name: 'unit_price', type: 'decimal', precision: 12, scale: 2, nullable: true })
+  unitPrice?: string | null;
+
+  @Column({ name: 'unit', length: 40, nullable: true })
+  unit?: string | null;
 
   @Column({ name: 'building_id', type: 'int', nullable: true })
   buildingId?: number | null;

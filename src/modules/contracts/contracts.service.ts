@@ -11,7 +11,7 @@ export class ContractsService {
     @InjectRepository(Contract) private readonly repo: Repository<Contract>,
   ) {}
 
-  async findAll(params?: { page?: number; limit?: number; ownerId?: number; status?: string }) {
+  async findAll(params?: { page?: number; limit?: number; ownerId?: number; status?: string; apartmentId?: number }) {
     const page = Math.max(1, Number(params?.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(params?.limit) || 20));
     const skip = (page - 1) * limit;
@@ -24,6 +24,10 @@ export class ContractsService {
 
     if (params?.status) {
       qb.andWhere('c.status = :status', { status: params.status });
+    }
+
+    if (params?.apartmentId) {
+      qb.andWhere('c.apartment_id = :apartmentId', { apartmentId: params.apartmentId });
     }
 
     const [items, total] = await qb.getManyAndCount();

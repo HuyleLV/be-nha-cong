@@ -12,7 +12,9 @@ export class ContractsController {
   @Get()
   async list(@Query() q: any, @Req() req: any) {
     const ownerId = req.user?.id ?? q.ownerId;
-    const res = await this.svc.findAll({ page: q.page, limit: q.limit, ownerId, status: q.status });
+    // Support both 'apartmentId' and legacy 'apartment' query param names
+    const apartmentId = q.apartmentId ?? q.apartment ?? undefined;
+    const res = await this.svc.findAll({ page: q.page, limit: q.limit, ownerId, status: q.status, apartmentId });
     return { data: res.items, meta: { total: res.total, page: res.page, limit: res.limit } };
   }
 

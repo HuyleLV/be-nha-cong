@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString, IsEnum, IsInt, IsNumberString } from 'class-validator';
-import { ServiceFeeType, ServicePriceType } from '../entities/service.entity';
+import { ServiceFeeType, ServicePriceType, ServiceUnit } from '../entities/service.entity';
 import { Type } from 'class-transformer';
 
 export class CreateServiceDto {
@@ -16,6 +16,13 @@ export class CreateServiceDto {
   @ApiProperty({ required: false }) @IsOptional()
   @IsNumberString()
   taxRate?: string; // stored as numeric string
+
+  @ApiProperty({ required: false }) @IsOptional()
+  @IsNumberString()
+  unitPrice?: string; // stored as numeric string (decimal)
+
+  @ApiProperty({ required: false }) @IsOptional() @IsEnum(ServiceUnit)
+  unit?: ServiceUnit;
 
   @ApiProperty({ required: false }) @IsOptional() @IsInt()
   @Type(() => Number)
