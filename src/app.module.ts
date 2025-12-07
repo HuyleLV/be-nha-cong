@@ -84,6 +84,12 @@ import { JobsModule } from './modules/jobs/jobs.module';
     ViewingsModule,
     CommentsModule,
     JobsModule
+    ,
+    require('./modules/thu-chi/thu-chi.module').ThuChiModule,
+    // Notifications (english module name)
+    require('./modules/notifications/notifications.module').NotificationsModule,
+    // Tasks (english module name)
+    require('./modules/tasks/tasks.module').TasksModule
   ],
 })
 export class AppModule {}
