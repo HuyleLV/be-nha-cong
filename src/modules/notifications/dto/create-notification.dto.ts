@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateNotificationDto {
   @IsNotEmpty()
@@ -12,4 +13,18 @@ export class CreateNotificationDto {
   @IsOptional()
   @IsString()
   attachments?: string;
+
+  @IsOptional()
+  @IsIn(['building','apartment'])
+  recipientType?: 'building' | 'apartment';
+
+  @IsOptional()
+  @Type(()=> Number)
+  @IsInt()
+  buildingId?: number;
+
+  @IsOptional()
+  @Type(()=> Number)
+  @IsInt()
+  apartmentId?: number;
 }

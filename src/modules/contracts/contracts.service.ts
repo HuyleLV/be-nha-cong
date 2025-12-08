@@ -97,4 +97,11 @@ export class ContractsService {
 
     return { total, expiringSoon, expired, terminated };
   }
+  async findByBuildingId(buildingId: number){
+    return this.repo.find({ where: { buildingId } });
+  }
+
+  async findByApartmentId(apartmentId: number){
+    return this.repo.find({ where: { apartmentId } });
+  }
 }

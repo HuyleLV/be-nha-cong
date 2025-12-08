@@ -14,6 +14,15 @@ export class Notification {
   @Column({ type: 'text', nullable: true })
   attachments: string | null;
 
+  @Column({ name: 'recipient_type', length: 32, nullable: true })
+  recipientType: 'building' | 'apartment' | null;
+
+  @Column({ name: 'building_id', type: 'int', nullable: true })
+  buildingId: number | null;
+
+  @Column({ name: 'apartment_id', type: 'int', nullable: true })
+  apartmentId: number | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
