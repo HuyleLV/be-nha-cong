@@ -1,12 +1,14 @@
-import { IsNotEmpty, IsOptional, IsString, IsEnum, IsDateString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsEnum, IsDateString, IsInt } from 'class-validator';
 import { PriorityLevel } from '../entities/task.entity';
 
 export class CreateTaskDto {
-  @IsOptional()
-  buildingId?: number;
+  @IsNotEmpty()
+  @IsInt()
+  buildingId: number;
 
-  @IsOptional()
-  apartmentId?: number;
+  @IsNotEmpty()
+  @IsInt()
+  apartmentId: number;
 
   @IsNotEmpty()
   @IsString()

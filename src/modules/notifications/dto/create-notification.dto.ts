@@ -5,9 +5,9 @@ export class CreateNotificationDto {
   @IsString()
   title: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  content?: string;
+  content: string;
 
   @IsOptional()
   @IsString()
