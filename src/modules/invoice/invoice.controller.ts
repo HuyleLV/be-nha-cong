@@ -1,10 +1,11 @@
-import { Controller, UseGuards, Req, Get, Post, Body, Param, Patch, Delete, Query } from '@nestjs/common';
+import { Controller, UseGuards, Req, Get, Post, Body, Param, Patch, Delete, Query, HttpException, InternalServerErrorException } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InvoiceService } from './invoice.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 
 @ApiTags('Invoices')
 @Controller('invoices')
@@ -38,9 +39,21 @@ export class InvoiceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('host', 'admin')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: CreateInvoiceDto, @Req() req: any) {
+  async update(@Param('id') id: string, @Body() dto: UpdateInvoiceDto, @Req() req: any) {
     const userId = req.user?.id ?? req.user?.sub ?? undefined;
-    return this.service.update(Number(id), dto, userId);
+    try {
+      return await this.service.update(Number(id), dto, userId);
+    } catch (err: any) {
+      // If it's already an HttpException, rethrow to preserve status
+      if (err instanceof HttpException) throw err;
+      // Provide clearer error message for client while avoiding full stack exposure
+      const reason = err?.message || (err?.toString && String(err)) || 'Unknown error';
+      // If TypeORM returned a driver error, include brief detail if available
+      const detail = err?.driverError?.detail || err?.detail || null;
+      const payload: any = { message: 'Cập nhật hóa đơn thất bại', reason };
+      if (detail) payload.detail = detail;
+      throw new InternalServerErrorException(payload);
+    }
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

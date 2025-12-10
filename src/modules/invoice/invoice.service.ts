@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Invoice } from './entities/invoice.entity';
 import { InvoiceItem } from './entities/invoice-item.entity';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 
 @Injectable()
 export class InvoiceService {
@@ -26,18 +27,20 @@ export class InvoiceService {
     } as any);
   const saved = await this.repo.save(parent as any) as unknown as Invoice;
 
+    const norm = (v: any) => (v === '' ? null : (v ?? null));
+
     if (dto.items?.length) {
       const items = dto.items.map((it) => this.itemRepo.create({
         invoiceId: (saved as any).id,
         invoice: saved as any,
         serviceName: it.serviceName,
-        unitPrice: it.unitPrice ?? null,
-        meterIndex: it.meterIndex ?? null,
-        quantity: it.quantity ?? null,
-        vat: it.vat ?? null,
+        unitPrice: norm(it.unitPrice),
+        meterIndex: norm(it.meterIndex),
+        quantity: norm(it.quantity),
+        vat: norm(it.vat),
         fromDate: it.fromDate ? new Date(it.fromDate) : null,
         toDate: it.toDate ? new Date(it.toDate) : null,
-        amount: it.amount ?? null,
+        amount: norm(it.amount),
       }));
       const savedItems = await this.itemRepo.save(items);
       (saved as any).items = savedItems;
@@ -72,44 +75,69 @@ export class InvoiceService {
     return found;
   }
 
-  async update(id: number, dto: CreateInvoiceDto, userId?: number) {
+  async update(id: number, dto: UpdateInvoiceDto, userId?: number) {
     const existing = await this.repo.findOne({ where: { id }, relations: ['items'] });
     if (!existing) throw new NotFoundException('Hóa đơn không tồn tại');
     if (userId && String(existing.createdBy) !== String(userId)) throw new ForbiddenException('Không có quyền sửa');
 
-    existing.buildingId = dto.buildingId;
-    existing.apartmentId = dto.apartmentId;
-    existing.contractId = dto.contractId ?? null;
-    existing.period = dto.period;
-    existing.issueDate = dto.issueDate ? new Date(dto.issueDate) : null;
-    existing.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
-    existing.printTemplate = dto.printTemplate ?? null;
-    existing.note = dto.note ?? null;
+    // Only overwrite fields that are present in the DTO (support partial updates)
+    if ((dto as any).buildingId !== undefined) existing.buildingId = dto.buildingId as any;
+    if ((dto as any).apartmentId !== undefined) existing.apartmentId = dto.apartmentId as any;
+    if (((dto as any).contractId !== undefined)) existing.contractId = (((dto as any).contractId === '') ? null : (dto.contractId ?? null)) as any;
+    if ((dto as any).period !== undefined) existing.period = dto.period as any;
+    if ((dto as any).issueDate !== undefined) existing.issueDate = dto.issueDate ? new Date(dto.issueDate) : null;
+    if ((dto as any).dueDate !== undefined) existing.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
+    if ((dto as any).printTemplate !== undefined) existing.printTemplate = dto.printTemplate ?? null;
+    if ((dto as any).note !== undefined) existing.note = dto.note ?? null;
 
-    const result = await this.repo.manager.transaction(async (manager) => {
+    let result: any;
+    try {
+      result = await this.repo.manager.transaction(async (manager) => {
       const savedParent = await manager.save(Invoice, existing as any);
-      await manager.delete(InvoiceItem, { invoiceId: id } as any);
 
       let savedItems: any[] = [];
-      if (dto.items?.length) {
-        const plainItems = dto.items.map((it) => ({
-          invoice_id: id,
-          service_name: it.serviceName,
-          unit_price: it.unitPrice ?? null,
-          meter_index: it.meterIndex ?? null,
-          quantity: it.quantity ?? null,
-          vat: it.vat ?? null,
-          from_date: it.fromDate ? new Date(it.fromDate) : null,
-          to_date: it.toDate ? new Date(it.toDate) : null,
-          amount: it.amount ?? null,
-        }));
-        await manager.insert(InvoiceItem, plainItems as any);
+      // Only replace items if items are present in DTO (allow partial update without touching items)
+      if ((dto as any).items !== undefined) {
+        await manager.delete(InvoiceItem, { invoiceId: id } as any);
+        if (Array.isArray(dto.items) && dto.items.length) {
+          const norm2 = (v: any) => (v === '' ? null : (v ?? null));
+          const plainItems = (dto.items as any[]).map((it) => ({
+            invoiceId: id,
+            serviceName: it.serviceName,
+            unitPrice: norm2(it.unitPrice),
+            meterIndex: norm2(it.meterIndex),
+            quantity: norm2(it.quantity),
+            vat: norm2(it.vat),
+            fromDate: it.fromDate ? new Date(it.fromDate) : null,
+            toDate: it.toDate ? new Date(it.toDate) : null,
+            amount: norm2(it.amount),
+          }));
+          await manager.insert(InvoiceItem, plainItems as any);
+          savedItems = await manager.find(InvoiceItem, { where: { invoiceId: id } as any });
+        }
+      } else {
+        // keep existing items
         savedItems = await manager.find(InvoiceItem, { where: { invoiceId: id } as any });
       }
 
       (savedParent as any).items = savedItems;
       return savedParent;
     });
+    } catch (err) {
+      // Log the incoming DTO and the error for easier debugging
+      console.error('[InvoiceService][update] failed to update invoice id=', id, 'dto=', {
+        buildingId: dto.buildingId,
+        apartmentId: dto.apartmentId,
+        contractId: dto.contractId,
+        period: dto.period,
+        issueDate: dto.issueDate,
+        dueDate: dto.dueDate,
+        printTemplate: dto.printTemplate,
+        note: dto.note,
+        itemsCount: Array.isArray(dto.items) ? dto.items.length : undefined,
+      }, 'error=', err);
+      throw err;
+    }
 
     return result;
   }

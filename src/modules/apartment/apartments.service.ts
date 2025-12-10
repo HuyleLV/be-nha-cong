@@ -158,6 +158,12 @@ export class ApartmentsService {
       qb.andWhere('a.status = :pub', { pub: 'published' });
       qb.andWhere('a.is_approved = true');
     }
+    // If caller provided explicit isApproved filter (e.g. admin UI), apply it.
+    if ((q as any).isApproved != null) {
+      const raw = (q as any).isApproved;
+      const val = raw === true || raw === 'true' || raw === 1 || raw === '1';
+      qb.andWhere('a.is_approved = :iap', { iap: val });
+    }
     if ((q as any).floorNumber != null) qb.andWhere('a.floor_number = :fn', { fn: (q as any).floorNumber });
     if (q.bedrooms != null) qb.andWhere('a.bedrooms >= :bed', { bed: q.bedrooms });
     if (q.bathrooms != null) qb.andWhere('a.bathrooms >= :bath', { bath: q.bathrooms });

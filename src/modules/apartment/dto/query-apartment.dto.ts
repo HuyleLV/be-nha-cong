@@ -174,6 +174,11 @@ export class QueryApartmentDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1)
   minDiscount?: number;
 
+  @ApiPropertyOptional({ description: 'lọc theo cờ duyệt bởi admin/host (true/false)' })
+  @IsOptional()
+  @IsBooleanString()
+  isApproved?: string;
+
   @ApiPropertyOptional({ description: 'lọc ưu đãi số tiền tối thiểu (VND)' })
   @IsOptional() @Type(() => Number) @IsInt() @Min(1)
   minDiscountAmount?: number;
