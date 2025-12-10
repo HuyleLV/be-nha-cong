@@ -8,6 +8,8 @@ import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import * as bcrypt from 'bcrypt';
 import { Viewing } from '../viewings/entities/viewing.entity';
 import { Apartment } from '../apartment/entities/apartment.entity';
+import { Contract } from '../contracts/entities/contract.entity';
+import { Deposit } from '../deposits/entities/deposit.entity';
 
 @Injectable()
 export class UsersService {
@@ -23,10 +25,20 @@ export class UsersService {
     const q = (query as any)?.q as string | undefined;
     const customerStatus = (query as any)?.customerStatus as string | undefined;
 
+    const hasContractOrDepositRaw = (query as any)?.hasContractOrDeposit;
+    const hasContractOrDeposit = typeof hasContractOrDepositRaw !== 'undefined' && (hasContractOrDepositRaw === true || hasContractOrDepositRaw === 'true' || hasContractOrDepositRaw === '1' || hasContractOrDepositRaw === 1);
+
     // Admin: full list
     if (!requester || String(requester.role).toLowerCase() === 'admin') {
       // Admin: optionally filter by customerStatus and q
       const qb = this.repo.createQueryBuilder('u').orderBy('u.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+      // when filtering by related contracts/deposits, add joins and distinct to avoid duplicates
+      if (hasContractOrDeposit) {
+        qb.distinct(true);
+        qb.leftJoin(Contract, 'c', 'c.customerId = u.id');
+        qb.leftJoin(Deposit, 'd', 'd.customerId = u.id');
+        qb.andWhere('(c.id IS NOT NULL OR d.id IS NOT NULL)');
+      }
       if (customerStatus) qb.andWhere('u.customerStatus = :cs', { cs: customerStatus });
       if (q) {
         const kw = `%${String(q).toLowerCase()}%`;
@@ -50,6 +62,13 @@ export class UsersService {
         .orderBy('u.createdAt', 'DESC')
         .skip((page - 1) * limit)
         .take(limit);
+
+      // when host requests only customers with contract or deposit, ensure relation exists
+      if (hasContractOrDeposit) {
+        qb.leftJoin(Contract, 'c', 'c.customerId = u.id');
+        qb.leftJoin(Deposit, 'd', 'd.customerId = u.id');
+        qb.andWhere('(c.id IS NOT NULL OR d.id IS NOT NULL)');
+      }
 
       if (q) {
         const kw = `%${String(q).toLowerCase()}%`;

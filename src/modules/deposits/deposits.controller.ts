@@ -47,9 +47,9 @@ export class DepositsController {
   }
 
   @Delete(':id')
-  @Roles('admin')
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    const result = await this.svc.remove(id);
+  @Roles('admin','host')
+  async remove(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+    const result = await this.svc.remove(id, req.user);
     return ok(result);
   }
 }

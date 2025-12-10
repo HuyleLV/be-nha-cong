@@ -142,4 +142,90 @@ export class MeterReadingService {
     await this.repo.delete(id); // items will be removed by ON DELETE CASCADE
     return { deleted: true };
   }
+
+  /**
+   * Compute summary stats for a user: counts of notFinalized, reviewed, notReviewed and total consumption
+   * Status priority (exclusive): if any item has reading_date IS NULL -> 'Chưa chốt'
+   * otherwise if any item has images -> 'Đã duyệt' else 'Chưa duyệt'
+   */
+  async getStatsByUser(userId?: number) {
+    if (!userId) return { notFinalized: 0, reviewed: 0, notReviewed: 0, totalConsumption: 0 };
+
+    // count readings that have at least one item with reading_date IS NULL
+    const notFinalizedRow: any = (await this.repo.query(
+      `SELECT COUNT(DISTINCT mr.id) as cnt
+       FROM meter_readings mr
+       JOIN meter_reading_items it ON it.meter_reading_id = mr.id
+       WHERE mr.created_by = ? AND it.reading_date IS NULL`,
+      [userId],
+    ))[0] || { cnt: 0 };
+
+    const notFinalized = Number(notFinalizedRow.cnt || 0);
+
+    // reviewed: no items with NULL reading_date AND at least one item with images not null/empty
+    const reviewedRow: any = (await this.repo.query(
+      `SELECT COUNT(DISTINCT mr.id) as cnt
+       FROM meter_readings mr
+       WHERE mr.created_by = ?
+         AND NOT EXISTS (SELECT 1 FROM meter_reading_items it WHERE it.meter_reading_id = mr.id AND it.reading_date IS NULL)
+         AND EXISTS (SELECT 1 FROM meter_reading_items it2 WHERE it2.meter_reading_id = mr.id AND it2.images IS NOT NULL AND it2.images <> '[]')`,
+      [userId],
+    ))[0] || { cnt: 0 };
+
+    const reviewed = Number(reviewedRow.cnt || 0);
+
+    // notReviewed: no NULL reading_date and no images
+    const notReviewedRow: any = (await this.repo.query(
+      `SELECT COUNT(DISTINCT mr.id) as cnt
+       FROM meter_readings mr
+       WHERE mr.created_by = ?
+         AND NOT EXISTS (SELECT 1 FROM meter_reading_items it WHERE it.meter_reading_id = mr.id AND it.reading_date IS NULL)
+         AND NOT EXISTS (SELECT 1 FROM meter_reading_items it2 WHERE it2.meter_reading_id = mr.id AND it2.images IS NOT NULL AND it2.images <> '[]')`,
+      [userId],
+    ))[0] || { cnt: 0 };
+
+    const notReviewed = Number(notReviewedRow.cnt || 0);
+
+    // total consumption: sum over items (new_index - coalesce(previous_index,0))
+    const totalRow: any = (await this.repo.query(
+      `SELECT COALESCE(SUM((COALESCE(CAST(it.new_index AS DECIMAL(18,4)),0) - COALESCE(CAST(it.previous_index AS DECIMAL(18,4)),0))),0) as total
+       FROM meter_readings mr
+       JOIN meter_reading_items it ON it.meter_reading_id = mr.id
+       WHERE mr.created_by = ?`,
+      [userId],
+    ))[0] || { total: 0 };
+
+    const totalConsumption = Number(totalRow.total || 0);
+
+    return { notFinalized, reviewed, notReviewed, totalConsumption };
+  }
+
+  /**
+   * Set approved flag by adding/removing a marker in items.images.
+   * Using images field as a lightweight marker to avoid DB schema migration.
+   */
+  async setApproval(id: number, userId: number | undefined, approve: boolean) {
+    const existing = await this.repo.findOne({ where: { id }, relations: ['items'] });
+    if (!existing) throw new NotFoundException('Ghi chỉ số không tồn tại');
+    if (userId && String(existing.createdBy) !== String(userId)) throw new ForbiddenException('Không có quyền');
+
+    const items = (existing as any).items || [];
+    for (const it of items) {
+      if (approve) {
+        // set a simple marker if images empty
+        if (!it.images || (Array.isArray(it.images) && it.images.length === 0)) it.images = ['__approved__'];
+      } else {
+        // remove marker values; if images only contains our marker, clear to null
+        if (Array.isArray(it.images) && it.images.length === 1 && it.images[0] === '__approved__') it.images = null;
+      }
+    }
+
+    if (items.length) {
+      await this.itemRepo.save(items as any);
+    }
+
+    // return updated entity
+    const updated = await this.repo.findOne({ where: { id }, relations: ['items'] });
+    return updated;
+  }
 }

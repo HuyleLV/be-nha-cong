@@ -52,6 +52,33 @@ export class MeterReadingController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('host', 'admin')
+  @Get('stats')
+  async stats(@Req() req: any) {
+    const userId = req.user?.id ?? req.user?.sub ?? undefined;
+    try {
+      return await this.service.getStatsByUser(userId);
+    } catch (err) {
+      console.error('[MeterReadingController.stats] error', err);
+      throw new InternalServerErrorException(err?.message || 'Lỗi khi lấy thống kê ghi chỉ số');
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('host', 'admin')
+  @Patch(':id/approve')
+  async approve(@Param('id') id: string, @Req() req: any, @Body() body: any) {
+    const userId = req.user?.id ?? req.user?.sub ?? undefined;
+    const approve = typeof body?.approve === 'boolean' ? body.approve : true;
+    try {
+      return await this.service.setApproval(Number(id), userId, approve);
+    } catch (err) {
+      console.error('[MeterReadingController.approve] error', err);
+      throw new InternalServerErrorException(err?.message || 'Lỗi khi cập nhật trạng thái duyệt');
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('host', 'admin')
   @Get(':id')
   getOne(@Param('id') id: string, @Req() req: any) {
     const userId = req.user?.id ?? req.user?.sub ?? undefined;

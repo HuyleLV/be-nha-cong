@@ -1,16 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Deposit } from './entities/deposit.entity';
 import { CreateDepositDto } from './dto/create-deposit.dto';
 import { UpdateDepositDto } from './dto/update-deposit.dto';
 import { User } from '../users/entities/user.entity';
+import { Apartment } from '../apartment/entities/apartment.entity';
 
 @Injectable()
 export class DepositsService {
   constructor(
     @InjectRepository(Deposit) private readonly repo: Repository<Deposit>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(Apartment) private readonly aptRepo: Repository<Apartment>,
   ) {}
 
   /**
@@ -61,10 +63,41 @@ export class DepositsService {
     return this.repo.save(item);
   }
 
-  async remove(id: number) {
+  async remove(id: number, requester?: any) {
     const item = await this.repo.findOneBy({ id });
     if (!item) throw new NotFoundException('Deposit not found');
-    await this.repo.remove(item);
-    return { deleted: true };
+
+    // If admin or no requester (internal), allow
+    if (!requester || String(requester.role).toLowerCase() === 'admin') {
+      await this.repo.remove(item);
+      return { deleted: true };
+    }
+
+    // Hosts (owners) may delete deposits they created for their apartments or for their customers
+    if (String(requester.role).toLowerCase() === 'host' || String(requester.role).toLowerCase() === 'owner') {
+      const hostId = Number(requester.id);
+      let allowed = false;
+
+      // If deposit is tied to an apartment, check apartment.createdById
+      if (item.apartmentId) {
+        const apt = await this.aptRepo.findOneBy({ id: item.apartmentId });
+        if (apt && Number(apt.createdById) === hostId) allowed = true;
+      }
+
+      // If deposit references a customer, allow host if they are owner of that customer
+      if (!allowed && item.customerId) {
+        const cust = await this.userRepo.findOneBy({ id: item.customerId });
+        if (cust && cust.ownerId && Number(cust.ownerId) === hostId) allowed = true;
+      }
+
+      if (!allowed) {
+        throw new ForbiddenException('Bạn không có quyền xóa phiếu đặt cọc này');
+      }
+
+      await this.repo.remove(item);
+      return { deleted: true };
+    }
+
+    throw new ForbiddenException('Bạn không có quyền xóa phiếu đặt cọc này');
   }
 }
