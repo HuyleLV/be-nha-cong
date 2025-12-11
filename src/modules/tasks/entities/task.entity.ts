@@ -6,6 +6,15 @@ export enum PriorityLevel {
   HIGH = 'high'
 }
 
+export enum TaskStatus {
+  TODO = 'chua_lam',
+  DOING = 'dang_lam',
+  PENDING = 'cho_nghiem_thu',
+  DONE = 'da_nghiem_thu',
+  FAILED = 'khong_dat',
+  OVERDUE = 'qua_han'
+}
+
 @Entity({ name: 'tasks' })
 export class Task {
   @PrimaryGeneratedColumn()
@@ -31,6 +40,9 @@ export class Task {
 
   @Column({ type: 'enum', enum: PriorityLevel, default: PriorityLevel.NORMAL })
   priority: PriorityLevel;
+
+  @Column({ type: 'enum', enum: TaskStatus, default: TaskStatus.TODO })
+  status: TaskStatus;
 
   @Column({ type: 'date', nullable: true })
   dueDate: string | null;

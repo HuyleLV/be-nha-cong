@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsOptional, IsString, IsEnum, IsDateString, IsInt } from 'class-validator';
-import { PriorityLevel } from '../entities/task.entity';
+import { PriorityLevel, TaskStatus } from '../entities/task.entity';
 
 export class CreateTaskDto {
   @IsNotEmpty()
@@ -41,4 +41,8 @@ export class CreateTaskDto {
   @IsOptional()
   @IsString()
   attachments?: string;
+
+  @IsOptional()
+  @IsEnum(TaskStatus)
+  status?: TaskStatus;
 }
