@@ -3,7 +3,7 @@ import {
   IsArray, IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsPositive,
   IsString, Max, MaxLength, Min, ArrayMaxSize
 } from 'class-validator';
-import { ApartmentStatus } from '../entities/apartment.entity';
+import { ApartmentStatus, ApartmentRoomStatus } from '../entities/apartment.entity';
 
 export class CreateApartmentDto {
   @ApiProperty() @IsString() @IsNotEmpty() @MaxLength(200)
@@ -86,6 +86,10 @@ export class CreateApartmentDto {
   @ApiProperty({ enum: ['draft','published','archived'], default: 'draft' })
   @IsOptional() @IsEnum(['draft','published','archived'])
   status?: ApartmentStatus = 'draft';
+
+  @ApiProperty({ enum: ['sap_trong','o_ngay','het_phong'], required: false, default: 'o_ngay' })
+  @IsOptional() @IsEnum(['sap_trong','o_ngay','het_phong'])
+  roomStatus?: ApartmentRoomStatus = 'o_ngay';
 
   @ApiProperty({ required: false }) @IsOptional() @IsString()
   coverImageUrl?: string;

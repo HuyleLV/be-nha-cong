@@ -22,6 +22,8 @@ import {
 
 export type ApartmentStatus = 'draft' | 'published' | 'archived';
 
+export type ApartmentRoomStatus = 'sap_trong' | 'o_ngay' | 'het_phong';
+
 @Entity('apartments')
 export class Apartment {
   @PrimaryGeneratedColumn()
@@ -119,6 +121,10 @@ export class Apartment {
   @Column({ default: 'draft', length: 20 })
   status: ApartmentStatus;
   // Trạng thái tin: draft/published/archived.
+
+  @Column({ name: 'room_status', length: 20, default: 'o_ngay' })
+  roomStatus: ApartmentRoomStatus;
+  // Trạng thái phòng: 'sap_trong' (sắp trống), 'o_ngay' (ở ngay), 'het_phong' (hết phòng)
 
   @Column({ name: 'cover_image_url', type: 'text', nullable: true })
   coverImageUrl?: string;

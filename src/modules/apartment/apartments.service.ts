@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException, ForbiddenException 
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Apartment } from './entities/apartment.entity';
+import { Asset } from '../asset/entities/asset.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateApartmentDto } from './dto/create-apartment.dto';
 import { UpdateApartmentDto } from './dto/update-apartment.dto';
@@ -27,6 +28,7 @@ export class ApartmentsService {
     @InjectRepository(Building) private readonly bRepo: Repository<Building>,
     @InjectRepository(Favorite) private readonly favRepo: Repository<Favorite>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(Asset) private readonly assetRepo: Repository<Asset>,
   ) {}
 
   private async ensureUniqueSlug(raw: string) {
@@ -157,6 +159,8 @@ export class ApartmentsService {
     if (!isAdminCaller && !isHostCaller) {
       qb.andWhere('a.status = :pub', { pub: 'published' });
       qb.andWhere('a.is_approved = true');
+      // Only show rooms that are currently available ('o_ngay') to public callers.
+      qb.andWhere('a.room_status = :rs', { rs: 'o_ngay' });
     }
     // If caller provided explicit isApproved filter (e.g. admin UI), apply it.
     if ((q as any).isApproved != null) {
@@ -289,6 +293,8 @@ export class ApartmentsService {
     const rawApts = await this.repo.createQueryBuilder('a')
       .where('a.status = :st', { st: 'published' })
       .andWhere('a.is_approved = true')
+      // Only include rooms that are currently available ('o_ngay') in home sections
+      .andWhere('a.room_status = :rs', { rs: 'o_ngay' })
       .andWhere('a.location_id IN (:...ids)', { ids: districtIds })
       .orderBy('a.created_at', 'DESC')
       .getMany();
@@ -341,6 +347,8 @@ export class ApartmentsService {
     const qb = this.repo.createQueryBuilder('a')
       .where('a.status = :st', { st: 'published' })
       .andWhere('a.is_approved = true')
+      // Only include rooms that are currently available ('o_ngay') in the most-interested list
+      .andWhere('a.room_status = :rs', { rs: 'o_ngay' })
       .addSelect((sub) => {
         return sub
           .select('COUNT(f.id)', 'favCount')
@@ -362,6 +370,158 @@ export class ApartmentsService {
     const items = withCount.map(i => ({ ...i, favorited: favSet.has(i.id) }));
 
     return { items };
+  }
+
+  /**
+   * Trả về danh sách căn hộ "còn trống": không có hợp đồng còn hiệu lực (active/expiring_soon)
+   * và không có đơn đặt cọc có giá trị (pending/signed).
+   */
+  async findAvailable(q: any, user?: any) {
+    const page = Number(q?.page) || 1;
+    const limit = Number(q?.limit) || 20;
+
+    // Base query to count matching apartments (no asset aggregation)
+    const baseQb = this.repo.createQueryBuilder('a')
+      .leftJoin('contracts', 'c', "c.apartment_id = a.id AND c.status IN (:...cs)", { cs: ['active', 'expiring_soon'] })
+      .leftJoin('deposits', 'd', "d.apartment_id = a.id AND d.status IN (:...ds)", { ds: ['pending', 'signed'] })
+      .where('c.id IS NULL')
+      .andWhere('d.id IS NULL');
+
+    if (q.locationId) baseQb.andWhere('a.location_id = :lid', { lid: q.locationId });
+    if (q.buildingId) baseQb.andWhere('a.building_id = :bid', { bid: q.buildingId });
+
+    // Restrict to host's own apartments when caller is a host
+    const isHost = user && (user.role === 'host' || user.role === 'Host' || user.role === 'chu_nha' || user.role === 'owner');
+    const uid = user?.id ?? user?.sub ?? null;
+    if (isHost && uid) {
+      baseQb.andWhere('a.created_by = :uid', { uid });
+    }
+
+    const total = await baseQb.getCount();
+
+    // Get paged apartment ids using same filters & ordering
+    const idsQb = baseQb.clone()
+      .select('a.id', 'id')
+      .orderBy('a.id', 'DESC')
+      .take(limit)
+      .skip((page - 1) * limit);
+
+    const idRows = await idsQb.getRawMany();
+    const aptIds = idRows.map((r: any) => r.id).filter(Boolean) as number[];
+
+    // Fetch apartment entities in the same order
+    let entities = [] as Apartment[];
+    if (aptIds.length) {
+      const ents = await this.repo.findBy({ id: In(aptIds) });
+      // preserve ordering
+      const entMap = new Map(ents.map(e => [e.id, e]));
+      entities = aptIds.map(id => entMap.get(id)).filter(Boolean) as Apartment[];
+    }
+
+    // Load related location/building names
+    const locIds = Array.from(new Set(entities.map(it => (it as any).locationId).filter(Boolean)));
+    const bIds = Array.from(new Set(entities.map(it => (it as any).buildingId).filter(Boolean)));
+    const locs = locIds.length ? await this.locRepo.findBy({ id: In(locIds) }) : [];
+    const blds = bIds.length ? await this.bRepo.findBy({ id: In(bIds) }) : [];
+    const locMap = new Map(locs.map((l: any) => [l.id, l]));
+    const bMap = new Map(blds.map((b: any) => [b.id, b]));
+
+    // Fetch assets for the apartments in one query and group them
+    const assets = aptIds.length ? await this.assetRepo.find({ where: { apartmentId: In(aptIds) } }) : [];
+    const assetsByApt = new Map<number, any[]>();
+    for (const as of assets) {
+      const list = assetsByApt.get(as.apartmentId) ?? [];
+      list.push(as);
+      assetsByApt.set(as.apartmentId, list);
+    }
+
+    const rows = entities.map(it => ({
+      ...it,
+      locationName: locMap.get((it as any).locationId)?.name ?? null,
+      buildingName: bMap.get((it as any).buildingId)?.name ?? null,
+      assets: assetsByApt.get(it.id) ?? [],
+    }));
+
+    return { items: rows, meta: { total, page, limit, pageCount: Math.max(1, Math.ceil(total / limit)) } };
+  }
+
+  /**
+   * Trả về danh sách căn hộ theo `roomStatus` (ví dụ: 'sap_trong')
+   * Endpoint báo cáo dùng để trả về các căn hộ với trường roomStatus đã được set.
+   */
+  async findByRoomStatus(q: any, user?: any) {
+    const page = Number(q?.page) || 1;
+    const limit = Number(q?.limit) || 20;
+    const status = q?.status ?? q?.roomStatus ?? null;
+
+    if (!status) return { items: [], meta: { total: 0, page, limit, pageCount: 1 } };
+
+    // Only allow public callers to request 'o_ngay' (available) rooms.
+    const isAdminCaller = user && (user.role === 'admin' || user.role === 'Admin');
+    const isHostCaller = user && (user.role === 'host' || user.role === 'Host' || user.role === 'chu_nha' || user.role === 'owner');
+    if (!isAdminCaller && !isHostCaller) {
+      // If client asks for anything other than 'o_ngay', return empty set to public callers.
+      if (String(status) !== 'o_ngay') {
+        return { items: [], meta: { total: 0, page, limit, pageCount: 1 } };
+      }
+    }
+
+    const baseQb = this.repo.createQueryBuilder('a')
+      .where('a.room_status = :rs', { rs: String(status) });
+
+    if (q.locationId) baseQb.andWhere('a.location_id = :lid', { lid: q.locationId });
+    if (q.buildingId) baseQb.andWhere('a.building_id = :bid', { bid: q.buildingId });
+
+    // Restrict to host's own apartments when caller is a host
+    const isHost = user && (user.role === 'host' || user.role === 'Host' || user.role === 'chu_nha' || user.role === 'owner');
+    const uid = user?.id ?? user?.sub ?? null;
+    if (isHost && uid) {
+      baseQb.andWhere('a.created_by = :uid', { uid });
+    }
+
+    const total = await baseQb.getCount();
+
+    const idsQb = baseQb.clone()
+      .select('a.id', 'id')
+      .orderBy('a.id', 'DESC')
+      .take(limit)
+      .skip((page - 1) * limit);
+
+    const idRows = await idsQb.getRawMany();
+    const aptIds = idRows.map((r: any) => r.id).filter(Boolean) as number[];
+
+    let entities: Apartment[] = [];
+    if (aptIds.length) {
+      const ents = await this.repo.findBy({ id: In(aptIds) });
+      const entMap = new Map(ents.map(e => [e.id, e]));
+      entities = aptIds.map(id => entMap.get(id)).filter(Boolean) as Apartment[];
+    }
+
+    // Load related location/building names
+    const locIds = Array.from(new Set(entities.map(it => (it as any).locationId).filter(Boolean)));
+    const bIds = Array.from(new Set(entities.map(it => (it as any).buildingId).filter(Boolean)));
+    const locs = locIds.length ? await this.locRepo.findBy({ id: In(locIds) }) : [];
+    const blds = bIds.length ? await this.bRepo.findBy({ id: In(bIds) }) : [];
+    const locMap = new Map(locs.map((l: any) => [l.id, l]));
+    const bMap = new Map(blds.map((b: any) => [b.id, b]));
+
+    // Fetch assets for the apartments in one query and group them
+    const assets = aptIds.length ? await this.assetRepo.find({ where: { apartmentId: In(aptIds) } }) : [];
+    const assetsByApt = new Map<number, any[]>();
+    for (const as of assets) {
+      const list = assetsByApt.get(as.apartmentId) ?? [];
+      list.push(as);
+      assetsByApt.set(as.apartmentId, list);
+    }
+
+    const rows = entities.map(it => ({
+      ...it,
+      locationName: locMap.get((it as any).locationId)?.name ?? null,
+      buildingName: bMap.get((it as any).buildingId)?.name ?? null,
+      assets: assetsByApt.get(it.id) ?? [],
+    }));
+
+    return { items: rows, meta: { total, page, limit, pageCount: Math.max(1, Math.ceil(total / limit)) } };
   }
   
 

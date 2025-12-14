@@ -14,6 +14,31 @@ import { Roles } from '../auth/roles.decorator';
 export class ApartmentsController {
   constructor(private readonly service: ApartmentsService) {}
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('host', 'admin')
+  @Get('available')
+  findAvailable(@Query() q: any, @Req() req: any) {
+    const user = req.user;
+    return this.service.findAvailable(q, user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('host', 'admin')
+  @Get('room-status')
+  findByRoomStatus(@Query() q: any, @Req() req: any) {
+    const user = req.user;
+    return this.service.findByRoomStatus(q, user);
+  }
+
+  // Public endpoint: apartments that match a roomStatus (e.g. 'sap_trong')
+  // Non-auth callers will only receive published and approved apartments (enforced in service)
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('room-status/public')
+  findByRoomStatusPublic(@Query() q: any, @Req() req: any) {
+    const user = req.user;
+    return this.service.findByRoomStatus(q, user);
+  }
+
   @UseGuards(OptionalJwtAuthGuard)
   @Get()
   findAll(@Query() q: QueryApartmentDto, @Req() req: any) {
