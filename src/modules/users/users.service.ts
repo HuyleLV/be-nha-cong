@@ -261,10 +261,26 @@ export class UsersService {
     throw new ForbiddenException('Bạn không có quyền cập nhật người dùng này');
   }
 
-  async remove(id: number) {
+  async remove(id: number, requester?: any) {
     const user = await this.repo.findOneBy({ id });
     if (!user) throw new NotFoundException('User not found');
-    await this.repo.remove(user);
-    return { deleted: true };
+
+    // Admin can delete any user
+    if (!requester || String(requester.role).toLowerCase() === 'admin') {
+      await this.repo.remove(user);
+      return { deleted: true };
+    }
+
+    // Host can delete ONLY their own customers (ownerId matches host id)
+    if (String(requester.role).toLowerCase() === 'host' || String(requester.role).toLowerCase() === 'owner') {
+      const hostId = Number(requester.id);
+      if (user.ownerId && Number(user.ownerId) === hostId) {
+        await this.repo.remove(user);
+        return { deleted: true };
+      }
+      throw new ForbiddenException('Bạn chỉ có thể xóa khách hàng do bạn tạo');
+    }
+
+    throw new ForbiddenException('Bạn không có quyền xóa người dùng này');
   }
 }

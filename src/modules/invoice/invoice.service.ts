@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Invoice } from './entities/invoice.entity';
 import { InvoiceItem } from './entities/invoice-item.entity';
+import { Contract } from '../contracts/entities/contract.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 
@@ -72,6 +74,33 @@ export class InvoiceService {
     const found = await this.repo.findOne({ where: { id }, relations: ['items'] });
     if (!found) throw new NotFoundException('Hóa đơn không tồn tại');
     if (userId && String(found.createdBy) !== String(userId)) throw new ForbiddenException('Không có quyền truy cập');
+    // If invoice references a contract, try to attach contract and customer info
+    try {
+      if ((found as any).contractId) {
+        const contractRepo = this.repo.manager.getRepository(Contract);
+        const contract = await contractRepo.findOne({ where: { id: (found as any).contractId } });
+        if (contract) (found as any).contract = contract;
+        if (contract && (contract as any).customerId) {
+          const userRepo = this.repo.manager.getRepository(User);
+          const user = await userRepo.findOne({ where: { id: (contract as any).customerId } });
+          if (user) {
+            // Only expose necessary customer fields to clients
+            (found as any).customer = {
+              id: (user as any).id,
+              name: (user as any).name ?? null,
+              gender: (user as any).gender ?? null,
+              email: (user as any).email ?? null,
+              address: (user as any).address ?? null,
+              avatarUrl: (user as any).avatarUrl ?? null,
+            };
+          }
+        }
+      }
+    } catch (err) {
+      // don't fail the invoice read if auxiliary joins fail; log for debugging
+      console.error('[InvoiceService][getOne] failed to load contract/customer for invoice', id, err);
+    }
+
     return found;
   }
 
