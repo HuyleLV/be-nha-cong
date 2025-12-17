@@ -7,3 +7,5 @@ export * from './complete-profile.dto';
 export * from './send-phone-otp.dto';
 export * from './verify-phone.dto';
 export * from './change-password.dto';
+export * from './forgot-password.dto';
+export * from './reset-password.dto';

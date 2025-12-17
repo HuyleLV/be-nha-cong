@@ -88,6 +88,14 @@ export class User {
   @Column({ type: 'datetime', nullable: true })
   phoneVerificationExpires?: Date | null;
 
+  /** Token đặt lại mật khẩu (tạm thời) */
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  passwordResetToken?: string | null;
+
+  /** Hạn dùng của token đặt lại mật khẩu */
+  @Column({ type: 'datetime', nullable: true })
+  passwordResetExpires?: Date | null;
+
   // ====== Referral / Affiliate ======
   @Column({ length: 50, unique: true, nullable: true })
   referralCode: string;

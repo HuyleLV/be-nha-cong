@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dto/register.dto';
 import * as nodemailer from 'nodemailer';
+import { randomBytes } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 import { ZaloService } from '../zalo/zalo.service';
@@ -141,6 +142,88 @@ export class AuthService {
     await this.usersRepo.save(user);
     await this.sendVerificationEmail(user.email, code);
     return { message: 'Đã gửi mã xác thực email', expiresAt: expires };
+  }
+
+  private async sendResetPasswordEmail(to: string, token: string, name?: string) {
+    const host = this.config.get<string>('mail.host');
+    const port = Number(this.config.get<number>('mail.port') ?? 587);
+    const user = this.config.get<string>('mail.user');
+    const pass = this.config.get<string>('mail.pass');
+    const from = this.config.get<string>('mail.from') || user || 'no-reply@example.com';
+
+    if (!host || !user || !pass) {
+      console.warn('[MAILER] Missing SMTP config. Reset token for', to, 'is', token);
+      return;
+    }
+
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+    });
+
+    const appName = this.config.get<string>('mail.appName') || 'NhaCong';
+    const frontend = this.config.get<string>('FRONTEND_URL') || this.config.get<string>('APP_URL') || 'http://localhost:3000';
+    const resetLink = `${frontend.replace(/\/$/, '')}/auth/reset-password?token=${encodeURIComponent(token)}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>${appName} - Đặt lại mật khẩu</h2>
+        <p>Xin chào ${name || ''},</p>
+        <p>Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu cho tài khoản liên kết với địa chỉ email này.</p>
+        <p>Vui lòng nhấn vào liên kết dưới đây để đặt mật khẩu mới. Liên kết có hiệu lực trong 1 giờ.</p>
+        <p><a href="${resetLink}">Đặt lại mật khẩu</a></p>
+        <p>Nếu bạn không yêu cầu thao tác này, hãy bỏ qua email này.</p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from,
+      to,
+      subject: `${appName} - Đặt lại mật khẩu`,
+      html,
+    });
+  }
+
+  // Yêu cầu đặt lại mật khẩu: tạo token, lưu vào DB và gửi email
+  async forgotPassword(email: string) {
+    const user = await this.usersRepo.findOne({ where: { email } });
+    if (!user) {
+      // Per user request: return explicit message when email not found
+      throw new BadRequestException('Email không tồn tại trong hệ thống');
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    user.passwordResetToken = token;
+    user.passwordResetExpires = expires as any;
+    await this.usersRepo.save(user);
+
+    await this.sendResetPasswordEmail(user.email, token, user.name ?? undefined);
+    return { message: 'Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư.' };
+  }
+
+  // Đặt lại mật khẩu bằng token
+  async resetPassword(token: string, newPassword: string, confirmNewPassword: string) {
+    if (!token) throw new BadRequestException('Thiếu token đặt lại mật khẩu');
+    if (!newPassword || !confirmNewPassword) throw new BadRequestException('Thiếu mật khẩu mới hoặc xác nhận mật khẩu');
+    if (newPassword !== confirmNewPassword) throw new BadRequestException('Xác nhận mật khẩu không khớp');
+    if (newPassword.length < 6) throw new BadRequestException('Mật khẩu mới phải có ít nhất 6 ký tự');
+
+    const user = await this.usersRepo.findOne({ where: { passwordResetToken: token } });
+    if (!user) throw new BadRequestException('Token không hợp lệ hoặc đã được sử dụng');
+    if (!user.passwordResetExpires || new Date() > new Date(user.passwordResetExpires)) {
+      throw new BadRequestException('Token đã hết hạn');
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordResetToken = null as any;
+    user.passwordResetExpires = null as any;
+    await this.usersRepo.save(user);
+
+    return { message: 'Đặt lại mật khẩu thành công' };
   }
 
   async validateUser(identifier: string, password: string) {

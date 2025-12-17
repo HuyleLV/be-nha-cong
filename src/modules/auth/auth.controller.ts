@@ -7,7 +7,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginGoogleDto } from './dto/login-google.dto';
 import { LoginGoogleCodeDto } from './dto/login-google-code.dto';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
-import { SendPhoneOtpDto, VerifyPhoneDto, ChangePasswordDto } from './dto';
+import { SendPhoneOtpDto, VerifyPhoneDto, ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto } from './dto';
 
 @Controller('auth')
 export class AuthController {
@@ -91,5 +91,17 @@ export class AuthController {
     async changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
         const userId = req.user?.id ?? req.user?.sub;
         return this.authService.changePassword(userId, dto);
+    }
+
+    // Yêu cầu đặt lại mật khẩu: nhập email -> gửi link
+    @Post('forgot-password')
+    async forgotPassword(@Body() dto: ForgotPasswordDto) {
+        return this.authService.forgotPassword(dto.email);
+    }
+
+    // Đặt lại mật khẩu bằng token (link)
+    @Post('reset-password')
+    async resetPassword(@Body() dto: ResetPasswordDto) {
+        return this.authService.resetPassword(dto.token, dto.newPassword, dto.confirmNewPassword);
     }
 }
