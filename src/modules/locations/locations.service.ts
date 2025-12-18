@@ -145,7 +145,7 @@ export class LocationsService {
   private async assertSlugUnique(slug: string, excludeId?: number) {
     const existed = await this.repo.findOne({ where: { slug } });
     if (existed && existed.id !== excludeId) {
-      throw new BadRequestException('Slug already exists');
+      throw new BadRequestException('Slug đã tồn tại. Vui lòng chọn slug khác');
     }
   }
 
