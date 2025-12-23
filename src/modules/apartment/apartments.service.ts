@@ -237,6 +237,10 @@ export class ApartmentsService {
         WHEN COALESCE(a.discount_amount,0) > 0 THEN CAST(a.discount_amount as DECIMAL(12,2))
         ELSE 0 END`, 'DESC')
         .addOrderBy('a.created_at', 'DESC');
+    } else if (sort === 'fill_payment_desc') {
+      // Sắp xếp theo tiền trả lấp phòng (nếu có) giảm dần
+      qb.orderBy('CAST(a.fill_payment_amount as DECIMAL(12,2))', 'DESC')
+        .addOrderBy('a.created_at', 'DESC');
     } else {
       qb.orderBy('a.id', 'DESC');
     }

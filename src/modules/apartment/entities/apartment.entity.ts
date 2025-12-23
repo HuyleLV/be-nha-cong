@@ -118,6 +118,18 @@ export class Apartment {
   commissionPercent?: number | null;
   // Hoa hồng cho cộng tác viên (CTV) tính theo phần trăm 0-100. Null nếu không áp dụng.
 
+  @Column({ name: 'commission_amount', type: 'numeric', precision: 12, scale: 2, nullable: true })
+  commissionAmount?: string | null;
+  // Hoa hồng cho cộng tác viên (CTV) theo số tiền (VND). Null nếu không áp dụng.
+
+  @Column({ name: 'needs_fill', type: 'bool', default: false })
+  needsFill: boolean;
+  // Cờ: căn hộ yêu cầu lấp phòng (host/owner đề xuất trả tiền để lấp phòng)
+
+  @Column({ name: 'fill_payment_amount', type: 'numeric', precision: 12, scale: 2, nullable: true })
+  fillPaymentAmount?: string | null;
+  // Số tiền hoa hồng/Phi trả để lấp phòng (VND). Null nếu không áp dụng.
+
   @Column({ default: 'draft', length: 20 })
   status: ApartmentStatus;
   // Trạng thái tin: draft/published/archived.

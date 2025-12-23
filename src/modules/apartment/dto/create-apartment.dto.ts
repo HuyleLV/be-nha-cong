@@ -79,6 +79,18 @@ export class CreateApartmentDto {
   @IsOptional() @IsInt() @Min(0) @Max(100)
   commissionPercent?: number;
 
+  @ApiProperty({ required: false, description: 'Hoa hồng cho CTV theo số tiền (numeric string, VND)' })
+  @IsOptional() @IsString()
+  commissionAmount?: string; // numeric string VND
+
+  @ApiProperty({ required: false, description: 'Cờ: cần lấp phòng (true = cần trả hoa hồng để lấp phòng) ' })
+  @IsOptional() @IsBoolean()
+  needsFill?: boolean;
+
+  @ApiProperty({ required: false, description: 'Số tiền trả cho việc lấp phòng (numeric string, VND)' })
+  @IsOptional() @IsString()
+  fillPaymentAmount?: string;
+
   @ApiProperty({ required: false, description: 'Tiền đặt cọc (numeric string, VND)' })
   @IsOptional() @IsString()
   depositAmount?: string;
