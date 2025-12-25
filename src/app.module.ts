@@ -79,6 +79,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
     // Vehicles module
     require('./modules/vehicles/vehicles.module').VehiclesModule,
   require('./modules/services/services.module').ServicesModule,
+    require('./modules/service-requests/service-requests.module').ServiceRequestsModule,
     OwnershipsModule,
     FavoritesModule,
     ViewingsModule,
