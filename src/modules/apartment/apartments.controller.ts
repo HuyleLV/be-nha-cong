@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ApartmentsService } from './apartments.service';
 import { CreateApartmentDto } from './dto/create-apartment.dto';
@@ -71,9 +71,48 @@ export class ApartmentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('host', 'admin')
   @Post()
-  create(@Body() dto: CreateApartmentDto, @Req() req: any) {
+  async create(@Body() dto: CreateApartmentDto, @Req() req: any) {
     const userId = req.user?.id ?? req.user?.sub ?? undefined;
-    return this.service.create(dto, userId, req.user?.role);
+    try {
+      const created = await this.service.create(dto, userId, req.user?.role);
+      return created;
+    } catch (err: any) {
+      // Handle common validation/database errors and return structured field errors
+      // 1) Known Nest exceptions (BadRequestException, NotFoundException, ForbiddenException)
+      const eAny = err as any;
+      if (err instanceof BadRequestException || err instanceof NotFoundException || err instanceof ForbiddenException) {
+        const msg = eAny?.message || (eAny.getResponse && eAny.getResponse?.() && (eAny.getResponse() as any).message) || String(eAny);
+        // Map common messages to field-specific errors
+        const lower = String(msg).toLowerCase();
+        if (lower.includes('location')) {
+          return { locationId: String(msg) };
+        }
+        if (lower.includes('building')) {
+          return { buildingId: String(msg) };
+        }
+        // Fallback: return message under general key
+        return { message: String(msg) };
+      }
+
+      // 2) TypeORM duplicate key / constraint errors (MySQL)
+      // ER_DUP_ENTRY (1062) → duplicate value (e.g., slug)
+      if (err && (err.code === 'ER_DUP_ENTRY' || err.errno === 1062)) {
+        const raw = String(err.message || err.sqlMessage || 'Giá trị đã tồn tại');
+        // try to extract column name from message
+        const m = raw.match(/for key '([^']+)'/i);
+        let field = 'slug';
+        if (m && m[1]) {
+          const key = m[1];
+          if (key.toLowerCase().includes('slug')) field = 'slug';
+          else if (key.toLowerCase().includes('room_code') || key.toLowerCase().includes('roomcode')) field = 'roomCode';
+        }
+        return { [field]: 'Giá trị đã tồn tại. Vui lòng kiểm tra và thử lại.' };
+      }
+
+      // 3) Fallback: return generic message object so FE can display
+      const fallback = (err && (err.message || err.toString())) || 'Có lỗi xảy ra khi tạo căn hộ';
+      return { message: String(fallback) };
+    }
   }
 
   @UseGuards(OptionalJwtAuthGuard)

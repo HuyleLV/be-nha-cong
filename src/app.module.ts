@@ -88,7 +88,9 @@ import { JobsModule } from './modules/jobs/jobs.module';
     ,
     require('./modules/thu-chi/thu-chi.module').ThuChiModule,
     // Notifications (english module name)
-    require('./modules/notifications/notifications.module').NotificationsModule,
+  require('./modules/notifications/notifications.module').NotificationsModule,
+  // Conversations / messaging
+  require('./modules/conversations/conversations.module').ConversationsModule,
     // Tasks (english module name)
     require('./modules/tasks/tasks.module').TasksModule
   ],

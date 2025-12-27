@@ -10,6 +10,6 @@ import { NotificationsGateway } from './notifications.gateway';
   imports: [TypeOrmModule.forFeature([Notification]), ContractsModule],
   providers: [NotificationService, NotificationsGateway],
   controllers: [NotificationController],
-  exports: [NotificationService]
+  exports: [NotificationService, NotificationsGateway]
 })
 export class NotificationsModule {}
