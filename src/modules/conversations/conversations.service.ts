@@ -37,10 +37,17 @@ export class ConversationsService {
       }
 
       // Create new conversation
-      const owner = await userRepoTx.findOne(ownerId as any);
-      const user = await userRepoTx.findOne(userId as any);
+  const owner = await userRepoTx.findOneBy({ id: ownerId as any });
+  const user = await userRepoTx.findOneBy({ id: userId as any });
       const conv = convRepoTx.create({ owner: owner as any, user: user as any });
       const saved = await convRepoTx.save(conv);
+      // reload with relations to ensure owner/user are present on returned object
+      try {
+        const reloaded = await convRepoTx.findOne({ where: { id: saved.id }, relations: ['owner', 'user'] });
+        if (reloaded) return reloaded;
+      } catch (e) {
+        // ignore
+      }
       return saved;
     });
   }
@@ -48,14 +55,71 @@ export class ConversationsService {
   async listConversationsForUser(userId: number) {
     // Return conversations where the user is either the owner or the customer
     if (!userId) return [];
-    return this.convRepo.find({ where: [{ owner: { id: userId } }, { user: { id: userId } }], relations: ['owner', 'user'] });
+    const convs = await this.convRepo.find({ where: [{ owner: { id: userId } }, { user: { id: userId } }], relations: ['owner', 'user'] });
+    // sanitize output to avoid leaking sensitive user fields (passwordHash, tokens, etc.)
+    return convs.map((c) => {
+      const participants: any[] = [];
+      try {
+        if (c.owner) participants.push({ id: c.owner.id, name: c.owner.name, avatarUrl: c.owner.avatarUrl ?? null });
+        if (c.user) participants.push({ id: c.user.id, name: c.user.name, avatarUrl: c.user.avatarUrl ?? null });
+      } catch (e) {}
+      return {
+        id: c.id,
+        createdAt: c.createdAt,
+        lastMessageText: (c as any).lastMessageText ?? null,
+        lastMessageAt: (c as any).lastMessageAt ?? null,
+        apartmentId: (c as any).apartmentId ?? null,
+        participants,
+      } as any;
+    });
   }
 
   async getMessages(conversationId: number, userId?: number) {
     const conv = await this.convRepo.findOne({ where: { id: conversationId }, relations: ['owner', 'user'] });
     if (!conv) throw new NotFoundException('Conversation not found');
     if (userId && Number(conv.owner?.id) !== Number(userId) && Number(conv.user?.id) !== Number(userId)) throw new ForbiddenException();
-    const messages = await this.msgRepo.find({ where: { conversation: conv }, order: { createdAt: 'ASC' } });
+    // Use QueryBuilder to ensure from/to are selected and only safe user fields are returned
+    const qb = this.msgRepo.createQueryBuilder('message')
+      .leftJoin('message.from', 'from')
+      .leftJoin('message.to', 'to')
+      .where('message.conversation = :convId', { convId: conversationId })
+      .orderBy('message.createdAt', 'ASC')
+      .select([
+        'message.id', 'message.text', 'message.attachments', 'message.icon', 'message.createdAt',
+        'from.id', 'from.name', 'from.avatarUrl', 'from.email',
+        'to.id', 'to.name', 'to.avatarUrl', 'to.email',
+      ]);
+
+    const rows = await qb.getRawMany();
+
+    // Transform raw rows into nested shape { id, text, attachments, icon, createdAt, from: {...}, to: {...} }
+    const messages = rows.map((r: any) => {
+      // TypeORM raw names will be like message_id, message_text, from_id, from_name, etc.
+      const created = r['message_createdAt'] ?? r['message_created_at'] ?? r['message_createdAt'] ?? r['message_createdat'] ?? r['message_created_at'];
+      let attachments: any = null;
+      try {
+        const rawAtt = r['message_attachments'] ?? r['message_attachments'] ?? null;
+        if (rawAtt) {
+          if (typeof rawAtt === 'string') {
+            try { attachments = JSON.parse(rawAtt); } catch { attachments = rawAtt; }
+          } else {
+            attachments = rawAtt;
+          }
+        }
+      } catch { attachments = null; }
+
+      const msg: any = {
+        id: r['message_id'] ?? r['message_id'] ?? r['message_id'],
+        text: r['message_text'] ?? r['message_text'] ?? r['message_text'],
+        attachments,
+        icon: r['message_icon'] ?? null,
+        createdAt: created,
+        from: r['from_id'] ? { id: r['from_id'], name: r['from_name'], avatarUrl: r['from_avatarUrl'] ?? r['from_avatar_url'] ?? null, email: r['from_email'] } : null,
+        to: r['to_id'] ? { id: r['to_id'], name: r['to_name'], avatarUrl: r['to_avatarUrl'] ?? r['to_avatar_url'] ?? null, email: r['to_email'] } : null,
+      };
+      return msg;
+    });
+
     return messages;
   }
 
@@ -63,12 +127,9 @@ export class ConversationsService {
     const conv = await this.convRepo.findOne({ where: { id: conversationId }, relations: ['owner', 'user'] });
     if (!conv) throw new NotFoundException('Conversation not found');
     // Debug log: participants and sender (helps diagnose missing req.user or mismatch)
-    try {
-      // eslint-disable-next-line no-console
-      console.log('[Conversations] postMessage - conv.owner/user ids:', { owner: Number(conv.owner?.id), user: Number(conv.user?.id), fromUserId: Number(fromUserId) });
-    } catch {}
+    // debug logs removed
     if (Number(conv.owner?.id) !== Number(fromUserId) && Number(conv.user?.id) !== Number(fromUserId)) throw new ForbiddenException();
-    const from = await this.userRepo.findOne(fromUserId as any);
+  const from = await this.userRepo.findOneBy({ id: fromUserId as any });
     // determine recipient
     const toUser = Number(conv.owner?.id) === Number(fromUserId) ? conv.user : conv.owner;
   const msg = this.msgRepo.create({ conversation: conv, from: from as any, to: toUser as any, text, attachments: attachments && attachments.length ? attachments : null, icon: icon || null });
@@ -76,7 +137,6 @@ export class ConversationsService {
     try {
       saved = await this.msgRepo.save(msg);
     } catch (e) {
-      try { console.error('[Conversations] Error saving message', e && (e.stack || e.message || e)); } catch {}
       throw new HttpException('Lỗi khi lưu tin nhắn. Vui lòng thử lại.', HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
@@ -87,7 +147,7 @@ export class ConversationsService {
       conv.lastMessageFrom = saved.from as any;
       try { await this.convRepo.save(conv); } catch (e) { /* don't fail message save if conv update fails */ }
     } catch (e) {
-      try { console.warn('[Conversations] Failed to update conversation last message fields', e && (e.stack || e.message || e)); } catch {}
+      // ignore failures updating conversation summary
     }
 
     // Emit real-time event to conversation room and to participants
@@ -103,11 +163,11 @@ export class ConversationsService {
             this.gateway.emitToRoom(`user:${p.id}`, 'conversation:message:new', { message: saved, conversationId: conv.id });
           }
         } catch (emitErr) {
-          try { console.warn('[Conversations] Emit to user room failed', emitErr && (emitErr.stack || emitErr.message || emitErr)); } catch {}
+          // ignore emit errors
         }
       }
     } catch (e) {
-      try { console.warn('[Conversations] Emit to rooms failed', e && (e.stack || e.message || e)); } catch {}
+      // ignore emit errors
     }
 
     return saved;

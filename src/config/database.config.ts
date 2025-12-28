@@ -10,7 +10,6 @@ export default registerAs('database', () => ({
   password: process.env.DB_PASSWORD ?? process.env.DB_PASS ?? '',
 
   database: process.env.DB_NAME || 'db_nhacong',
-  // Chỉ bật khi dev; prod nên để false và dùng migrations
   synchronize: (process.env.DB_SYNCHRONIZE ?? 'true') === 'true',
-  logging: (process.env.DB_LOGGING ?? 'true') === 'true',
+  logging: (process.env.DB_LOGGING ?? 'false') === 'true',
 }));

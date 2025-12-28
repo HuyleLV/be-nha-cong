@@ -83,6 +83,20 @@ export class ApartmentsService {
       isApproved: isApprovedVal,
     });
 
+    // If creator is a host (not admin), relax commission_amount handling:
+    // - Treat empty string or missing commissionAmount as null to avoid DB numeric errors
+    // - Do not enforce any further constraints here; admins can still set commissionAmount explicitly
+    if (!isAdmin) {
+      try {
+        const ca = (dto as any).commissionAmount;
+        if (ca === undefined || ca === null || (typeof ca === 'string' && String(ca).trim() === '')) {
+          (entity as any).commissionAmount = null;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
     // Save entity first to obtain generated id
     const saved = await this.repo.save(entity);
 
@@ -247,20 +261,36 @@ export class ApartmentsService {
 
     // If caller is a host, restrict to apartments created by that host
     if (isHostCaller) {
-      console.log(123);
       const uid = currentUserId ?? null;
       // DB column is named `created_by` (entity maps createdById -> created_by)
       if (uid) qb.andWhere('a.created_by = :uid', { uid });
     }
+    // Join owner (users) table via created_by -> user.id and map to `a.owner`
+    qb.leftJoinAndMapOne('a.owner', User, 'owner', 'owner.id = a.created_by');
 
     const [items, total] = await qb.getManyAndCount();
 
     // === favorited map ===
-  const favSet = await this.getFavIdSet(currentUserId, items.map(i => i.id));
-    const itemsWithFav = items.map(i => ({ ...i, favorited: favSet.has(i.id) }));
+    const favSet = await this.getFavIdSet(currentUserId, items.map(i => i.id));
+
+    // Sanitize joined owner data and attach minimal owner summary to each item
+    const itemsWithOwner = items.map(i => {
+      const rawOwner = (i as any).owner as any | undefined;
+      const owner = rawOwner ? {
+        id: rawOwner.id,
+        name: rawOwner.name ?? rawOwner.displayName ?? undefined,
+        avatarUrl: rawOwner.avatarUrl ?? rawOwner.avatar_url ?? undefined,
+        email: rawOwner.email ?? undefined,
+      } : null;
+      return {
+        ...i,
+        favorited: favSet.has(i.id),
+        owner,
+      };
+    });
 
     return {
-      items: itemsWithFav,
+      items: itemsWithOwner,
       meta: { total, page, limit, pageCount: Math.ceil(total / limit) },
     };
   }

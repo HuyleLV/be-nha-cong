@@ -43,7 +43,6 @@ export class ApartmentsController {
   @Get()
   findAll(@Query() q: QueryApartmentDto, @Req() req: any) {
     const user = req.user;
-    console.log('User in findAll:', user);
     return this.service.findAll(q, user);
   }
 
@@ -77,6 +76,15 @@ export class ApartmentsController {
       const created = await this.service.create(dto, userId, req.user?.role);
       return created;
     } catch (err: any) {
+      // Helper: convert snake_case DB column name to camelCase form field
+      const snakeToCamel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+      const extractColumn = (rawMsg: string) => {
+        const m1 = rawMsg.match(/for column '([^']+)'/i);
+        if (m1 && m1[1]) return m1[1];
+        const m2 = rawMsg.match(/column `?([^`'\s]+)`?/i);
+        if (m2 && m2[1]) return m2[1];
+        return null;
+      };
       // Handle common validation/database errors and return structured field errors
       // 1) Known Nest exceptions (BadRequestException, NotFoundException, ForbiddenException)
       const eAny = err as any;
@@ -91,7 +99,34 @@ export class ApartmentsController {
           return { buildingId: String(msg) };
         }
         // Fallback: return message under general key
-        return { message: String(msg) };
+        // translate general messages to Vietnamese
+        return { message: String(msg) || 'Có lỗi xác thực. Vui lòng kiểm tra dữ liệu.' };
+      }
+
+      // 1.5) Common SQL / TypeORM query errors (invalid data types, truncation, null constraints)
+      const rawMsg = String(err?.message || err?.sqlMessage || err?.toString() || '').trim();
+      const lowerRaw = rawMsg.toLowerCase();
+      // Incorrect decimal value / truncated numeric
+      if (lowerRaw.includes('incorrect decimal value') || lowerRaw.includes('data truncated') || lowerRaw.includes('truncated') || lowerRaw.includes('invalid decimal')) {
+        const col = extractColumn(rawMsg);
+        if (col) {
+          const field = snakeToCamel(col);
+          return { [field]: `Giá trị không hợp lệ cho trường ${field}. Vui lòng nhập số hợp lệ.` };
+        }
+        return { message: 'Có giá trị không hợp lệ cho một số trường. Vui lòng kiểm tra dữ liệu đầu vào.' };
+      }
+      // NULL / no default errors
+      if (lowerRaw.includes("cannot be null") || lowerRaw.includes("doesn't have a default value") || lowerRaw.includes("cannot be null")) {
+        const col = extractColumn(rawMsg);
+        if (col) {
+          const field = snakeToCamel(col);
+          return { [field]: `Trường ${field} không được để trống.` };
+        }
+        return { message: 'Một trường bắt buộc bị để trống. Vui lòng kiểm tra dữ liệu.' };
+      }
+      // Foreign key / reference errors
+      if (lowerRaw.includes('foreign key') || lowerRaw.includes('a foreign key constraint fails') || lowerRaw.includes('er_no_referenced_row')) {
+        return { message: 'Giá trị tham chiếu không hợp lệ hoặc không tồn tại. Vui lòng kiểm tra các trường tham chiếu.' };
       }
 
       // 2) TypeORM duplicate key / constraint errors (MySQL)
@@ -110,8 +145,8 @@ export class ApartmentsController {
       }
 
       // 3) Fallback: return generic message object so FE can display
-      const fallback = (err && (err.message || err.toString())) || 'Có lỗi xảy ra khi tạo căn hộ';
-      return { message: String(fallback) };
+      // translate fallback to Vietnamese
+      return { message: 'Có lỗi xảy ra khi tạo căn hộ. Vui lòng kiểm tra dữ liệu và thử lại.' };
     }
   }
 

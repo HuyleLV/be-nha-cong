@@ -36,28 +36,47 @@ export class ConversationsController {
       }
     }
 
+    // debug logs removed
+
+    if (!ownerId || !userId) {
+      // Return a structured message instead of throwing so the FE receives a clear response
+      return { message: 'ownerId và userId là bắt buộc' };
+    }
+
+    let conv: any = null;
     try {
-      // eslint-disable-next-line no-console
-      console.log('[Conversations] createOrGet called', { rawIds: body.participantIds, ownerId, userId, meId, hasInitialMessage: !!body.initialMessage });
+      conv = await this.conv.findOrCreateConversation(Number(ownerId), Number(userId));
+    } catch (e) {
+      // Return a structured message so FE can display it instead of receiving a generic Internal server error
+      return { message: `Lỗi khi tạo/tìm cuộc trò chuyện: ${String(e && (e.message || e) || 'Unknown error')}` };
+    }
+
+    const convForReturn: any = {
+      id: conv?.id ?? null,
+      ownerId: conv?.owner?.id ?? null,
+      userId: conv?.user?.id ?? null,
+      apartmentId: (conv as any)?.apartmentId ?? null,
+      lastMessageText: (conv as any)?.lastMessageText ?? null,
+      lastMessageAt: (conv as any)?.lastMessageAt ?? null,
+      participants: [],
+    };
+    try {
+      if (conv?.owner) convForReturn.participants.push({ id: conv.owner.id, name: conv.owner.name, avatarUrl: conv.owner.avatarUrl ?? null });
+      if (conv?.user) convForReturn.participants.push({ id: conv.user.id, name: conv.user.name, avatarUrl: conv.user.avatarUrl ?? null });
     } catch {}
-
-    if (!ownerId || !userId) throw new Error('ownerId và userId là bắt buộc');
-
-    const conv = await this.conv.findOrCreateConversation(Number(ownerId), Number(userId));
 
     // If caller provided an initial message, try to create it but do NOT fail the whole request if message sending errors.
     if (body.initialMessage && meId) {
       try {
         const msg = await this.conv.postMessage(Number(conv.id), meId, String(body.initialMessage || ''));
-        return { conversation: conv, message: msg };
+        return { conversation: convForReturn, message: msg };
       } catch (e) {
         // Log error for diagnostics but return conversation so client can open it.
-        try { console.error('[Conversations] initialMessage send failed, returning conversation anyway', e && (e.stack || e.message || e)); } catch {}
-        return { conversation: conv, message: null, messageError: String((e && (e.message || e)) || 'Failed to send initial message') };
+        return { conversation: convForReturn, message: null, messageError: String((e && (e.message || e)) || 'Failed to send initial message') };
       }
     }
 
-    return conv;
+    return { conversation: convForReturn };
   }
 
   @Get('mine')
@@ -80,29 +99,14 @@ export class ConversationsController {
     @Req() req: any,
   ) {
     const meId = req?.user?.id;
-    // lightweight logging to help debug message flow (no sensitive tokens)
-    try {
-      // eslint-disable-next-line no-console
-      console.log(`[Conversations] POST /api/conversations/${id}/messages received`, {
-        userId: meId,
-        conversationId: Number(id),
-        headers: { authorization: String(req?.headers?.authorization || '').slice(0, 80) },
-        bodyPreview: String((body?.text || '')).slice(0, 120),
-      });
-    } catch {}
-
     if (!meId) {
       // If JwtAuthGuard didn't populate req.user for some reason, provide a clear message
-      // eslint-disable-next-line no-console
-      console.warn('[Conversations] postMessage called without authenticated user (req.user missing)');
       throw new Error('Thiếu thông tin người dùng. Vui lòng đăng nhập lại.');
     }
 
     try {
       return await this.conv.postMessage(Number(id), meId, String(body.text || ''), body.attachments || undefined, body.icon || undefined);
     } catch (e) {
-      // Log error for diagnostics then rethrow so global filter formats it
-      try { console.error('[Conversations] postMessage error', e && (e.stack || e.message || e)); } catch {}
       throw e;
     }
   }
