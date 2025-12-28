@@ -80,6 +80,8 @@ import { JobsModule } from './modules/jobs/jobs.module';
     require('./modules/vehicles/vehicles.module').VehiclesModule,
   require('./modules/services/services.module').ServicesModule,
     require('./modules/service-requests/service-requests.module').ServiceRequestsModule,
+  // Reports (warranty / repair / fire / complaint)
+  require('./modules/reports/reports.module').ReportsModule,
     OwnershipsModule,
     FavoritesModule,
     ViewingsModule,
