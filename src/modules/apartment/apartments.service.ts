@@ -190,14 +190,12 @@ export class ApartmentsService {
     if (q.maxPrice != null) qb.andWhere('a.rent_price <= :maxp', { maxp: q.maxPrice });
 
     // Discount filters
-    if ((q as any).minDiscount != null) {
-      qb.andWhere('COALESCE(a.discount_percent, 0) >= :mind', { mind: (q as any).minDiscount });
-    }
     if ((q as any).minDiscountAmount != null) {
       qb.andWhere('COALESCE(a.discount_amount, 0) >= :mindAmt', { mindAmt: (q as any).minDiscountAmount });
     }
     if ((q as any).hasDiscount === 'true') {
-      qb.andWhere('(COALESCE(a.discount_percent,0) > 0 OR COALESCE(a.discount_amount,0) > 0)');
+      // Only consider fixed amount discounts (discount_amount) — percent-based discounts were removed
+      qb.andWhere('COALESCE(a.discount_amount,0) > 0');
     }
 
     // boolean filters
@@ -245,15 +243,14 @@ export class ApartmentsService {
     // Sorting
     const sort = (q as any).sort as string | undefined;
     if (sort === 'discount_desc') {
-      // Sắp xếp theo giá trị VND giảm thực tế: percent * price hoặc discount_amount
-      qb.orderBy(`CASE 
-        WHEN COALESCE(a.discount_percent,0) > 0 THEN (CAST(a.rent_price as DECIMAL(12,2)) * a.discount_percent / 100)
-        WHEN COALESCE(a.discount_amount,0) > 0 THEN CAST(a.discount_amount as DECIMAL(12,2))
-        ELSE 0 END`, 'DESC')
+      // Sắp xếp theo số tiền giảm trực tiếp (discount_amount) giảm dần
+      // Use simple COALESCE expression to avoid complex CAST parsing issues
+      // Use unqualified column reference inside COALESCE to avoid alias-parsing issues in TypeORM
+      qb.orderBy('COALESCE(discount_amount, 0)', 'DESC')
         .addOrderBy('a.created_at', 'DESC');
     } else if (sort === 'fill_payment_desc') {
       // Sắp xếp theo tiền trả lấp phòng (nếu có) giảm dần
-      qb.orderBy('CAST(a.fill_payment_amount as DECIMAL(12,2))', 'DESC')
+      qb.orderBy('COALESCE(fill_payment_amount, 0)', 'DESC')
         .addOrderBy('a.created_at', 'DESC');
     } else {
       qb.orderBy('a.id', 'DESC');

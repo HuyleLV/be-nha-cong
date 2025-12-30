@@ -47,6 +47,25 @@ export class ApartmentsController {
   }
 
   @UseGuards(OptionalJwtAuthGuard)
+  @Get('discounted')
+  async getDiscounted(@Query() q: any, @Req() req: any) {
+    // Force discount-related defaults: published + hasDiscount + discount_desc
+    const user = req.user;
+    try {
+      const merged: any = { ...(q || {}), hasDiscount: 'true', sort: 'discount_desc', status: 'published' };
+      // Coerce common paging params to numbers to avoid type issues when caller bypasses validation
+      merged.page = Number(merged.page) || 1;
+      merged.limit = Number(merged.limit) || 10;
+      return await this.service.findAll(merged, user);
+    } catch (err: any) {
+      // Log server error for debugging and return a readable message to client
+      // (Keep message generic to avoid leaking internals)
+      console.error('GET /apartments/discounted error:', err);
+      throw new BadRequestException(err?.message || 'Lỗi khi truy vấn danh sách ưu đãi');
+    }
+  }
+
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('home-sections')
   async getHomeSections(
     @Query('citySlug') citySlug: string,

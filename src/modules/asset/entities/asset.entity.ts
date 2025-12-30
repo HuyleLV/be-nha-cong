@@ -31,9 +31,6 @@ export class Asset {
   @Column({ length: 20, default: 'available' })
   status: AssetStatus;
 
-  @Column({ name: 'warranty_period', length: 80, nullable: true })
-  warrantyPeriod?: string | null;
-
   @Column({ name: 'building_id', type: 'int', nullable: true })
   buildingId?: number | null;
 

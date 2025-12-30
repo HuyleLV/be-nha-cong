@@ -27,7 +27,7 @@ export class CreateAssetDto {
   status?: string;
 
   @ApiProperty({ required: false }) @IsOptional() @IsString()
-  warrantyPeriod?: string;
+  // warrantyPeriod removed — handled no longer
 
   @ApiProperty({ required: false }) @IsOptional() @IsInt()
   buildingId?: number;

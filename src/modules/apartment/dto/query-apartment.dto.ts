@@ -166,13 +166,9 @@ export class QueryApartmentDto {
   @Type(() => Number)
   minImages?: number;
 
-  @ApiPropertyOptional({ description: 'lọc ưu đãi: có ưu đãi (>0%)' })
+  @ApiPropertyOptional({ description: 'lọc ưu đãi: có ưu đãi (discount_amount > 0)' })
   @IsOptional() @IsBooleanString()
   hasDiscount?: string;
-
-  @ApiPropertyOptional({ description: 'lọc ưu đãi tối thiểu (%)' })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1)
-  minDiscount?: number;
 
   @ApiPropertyOptional({ description: 'lọc theo cờ duyệt bởi admin/host (true/false)' })
   @IsOptional()

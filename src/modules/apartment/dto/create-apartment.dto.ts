@@ -67,10 +67,6 @@ export class CreateApartmentDto {
   @ApiProperty({ default: 'VND' }) @IsOptional() @IsString() @MaxLength(10)
   currency?: string = 'VND';
 
-  @ApiProperty({ required: false, description: 'Ưu đãi (%), 0-100' })
-  @IsOptional() @IsInt() @Min(0) @Max(100)
-  discountPercent?: number;
-
   @ApiProperty({ required: false, description: 'Ưu đãi cố định theo số tiền (numeric string VND)' })
   @IsOptional() @IsString()
   discountAmount?: string; // dùng string để thống nhất kiểu với rentPrice
