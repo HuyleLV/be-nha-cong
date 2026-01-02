@@ -23,7 +23,6 @@ import { ZaloModule } from '../zalo/zalo.module';
       useFactory: (cfg: ConfigService) => {
         const secret = cfg.get<string>('JWT_SECRET');
         if (!secret) {
-          // Bắt buộc có, tránh lệch secret gây "invalid signature"
           throw new Error('JWT_SECRET is missing. Please set it in your .env');
         }
         return {
