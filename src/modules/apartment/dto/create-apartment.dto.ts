@@ -109,6 +109,14 @@ export class CreateApartmentDto {
   @IsString({ each: true })
   images?: string[];
 
+  @ApiProperty({ required: false, description: 'URL hoặc identifier cho short-review (clip ngắn). FE expects `shortVideoUrl` field.' })
+  @IsOptional() @IsString()
+  shortVideoUrl?: string;
+
+  @ApiProperty({ required: false, description: 'URL ảnh thumbnail (poster) cho short-review. FE sẽ hiển thị nếu có.' })
+  @IsOptional() @IsString()
+  shortVideoThumb?: string;
+
   // ====== Fees ======
   @ApiProperty({ required: false }) @IsOptional() @IsInt() @Min(0)
   electricityPricePerKwh?: number;

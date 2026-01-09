@@ -146,6 +146,18 @@ export class Apartment {
   depositAmount?: string | null;
   // Danh sách URL ảnh (gallery). BE đảm bảo videoUrl nếu có sẽ đứng đầu thông qua logic riêng.
 
+  /* ========== Short review / short video (portrait clip) ========== */
+  // Stored in DB column `short`, exposed in the entity as `shortVideoUrl` so FE clients
+  // that expect shortVideoUrl/shortVideo can read the value directly.
+  @Column({ name: 'short', type: 'text', nullable: true })
+  shortVideoUrl?: string | null;
+  // URL hoặc embed identifier cho clip ngắn (short review). Riêng để FE hiển thị short thumbnails.
+
+  // Optional thumbnail image for the short clip. Stored in DB column `short_thumb`.
+  @Column({ name: 'short_thumb', type: 'text', nullable: true })
+  shortVideoThumb?: string | null;
+  // Lưu đường dẫn ảnh thumbnail (poster) cho short video để FE hiển thị nhanh mà không cần tải video.
+
 
   /* ========== Service fees ========== */
   @Column({ name: 'electricity_price_per_kwh', type: 'int', unsigned: true, nullable: true })

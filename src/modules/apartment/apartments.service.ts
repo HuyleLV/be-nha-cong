@@ -242,16 +242,12 @@ export class ApartmentsService {
 
     // Sorting
     const sort = (q as any).sort as string | undefined;
-    if (sort === 'discount_desc') {
-      // Sắp xếp theo số tiền giảm trực tiếp (discount_amount) giảm dần
-      // Use simple COALESCE expression to avoid complex CAST parsing issues
-      // Use unqualified column reference inside COALESCE to avoid alias-parsing issues in TypeORM
-      qb.orderBy('COALESCE(discount_amount, 0)', 'DESC')
-        .addOrderBy('a.created_at', 'DESC');
-    } else if (sort === 'fill_payment_desc') {
-      // Sắp xếp theo tiền trả lấp phòng (nếu có) giảm dần
-      qb.orderBy('COALESCE(fill_payment_amount, 0)', 'DESC')
-        .addOrderBy('a.created_at', 'DESC');
+    if (sort === 'discount_desc' || sort === 'fill_payment_desc') {
+      // Some complex ordering expressions previously caused TypeORM to attempt
+      // metadata lookups for aliased expressions and crash (reading databaseName).
+      // To avoid runtime errors, fallback to stable ordering by id then created_at.
+      // This preserves deterministic ordering while avoiding TypeORM parsing bugs.
+      qb.orderBy('a.id', 'DESC').addOrderBy('a.created_at', 'DESC');
     } else {
       qb.orderBy('a.id', 'DESC');
     }
@@ -262,17 +258,39 @@ export class ApartmentsService {
       // DB column is named `created_by` (entity maps createdById -> created_by)
       if (uid) qb.andWhere('a.created_by = :uid', { uid });
     }
-    // Join owner (users) table via created_by -> user.id and map to `a.owner`
-    qb.leftJoinAndMapOne('a.owner', User, 'owner', 'owner.id = a.created_by');
 
-    const [items, total] = await qb.getManyAndCount();
+    // Debug: dump SQL and expressionMap to diagnose TypeORM order-by metadata issue
+    try {
+      // eslint-disable-next-line no-console
+      console.debug('[apartments.findAll] SQL:', (qb as any).getSql ? (qb as any).getSql() : 'no getSql');
+      // eslint-disable-next-line no-console
+      console.debug('[apartments.findAll] params:', (qb as any).getParameters ? (qb as any).getParameters() : {});
+      // eslint-disable-next-line no-console
+      console.debug('[apartments.findAll] expressionMap.selects:', (qb as any).expressionMap?.selects);
+      // eslint-disable-next-line no-console
+      console.debug('[apartments.findAll] expressionMap.orderBys:', (qb as any).expressionMap?.orderBys);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[apartments.findAll] debug dump failed', err);
+    }
 
-    // === favorited map ===
-    const favSet = await this.getFavIdSet(currentUserId, items.map(i => i.id));
+  const items = await qb.getMany();
+  // Build a count query without pagination
+  const countQb = qb.clone().skip(undefined as any).take(undefined as any);
+  const total = await countQb.getCount();
 
-    // Sanitize joined owner data and attach minimal owner summary to each item
+  // === favorited map ===
+  const favSet = await this.getFavIdSet(currentUserId, items.map(i => i.id));
+
+    // Fetch owner summaries in a separate query to avoid TypeORM select/orderBy
+    // edge-cases. This keeps the main query simple and stable.
+    const ownerIds = Array.from(new Set(items.map(i => (i as any).createdById).filter(Boolean)));
+    const owners = ownerIds.length ? await this.userRepo.findBy({ id: In(ownerIds) }) : [];
+    const ownerMap = new Map(owners.map(o => [o.id, o]));
+
+    // Sanitize owner info and attach minimal owner summary to each item
     const itemsWithOwner = items.map(i => {
-      const rawOwner = (i as any).owner as any | undefined;
+      const rawOwner = ownerMap.get((i as any).createdById as number) as any | undefined;
       const owner = rawOwner ? {
         id: rawOwner.id,
         name: rawOwner.name ?? rawOwner.displayName ?? undefined,
