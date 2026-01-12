@@ -109,6 +109,10 @@ export class User {
   @Column({ type: 'enum', enum: UserRole, nullable: true })
   role: UserRole;
 
+  /** Người dùng có là CTV không (cộng tác viên) */
+  @Column({ name: 'is_ctv', type: 'boolean', default: false })
+  isCtv?: boolean;
+
   /** OAuth provider info */
   @Column({ length: 50, nullable: true, default: 'local' })
   provider?: string | null; // 'local' | 'google' | 'facebook' ...

@@ -88,6 +88,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
     CommentsModule,
     JobsModule
     ,
+  require('./modules/ctv-requests/ctv-requests.module').CtvRequestsModule,
     require('./modules/thu-chi/thu-chi.module').ThuChiModule,
     // Notifications (english module name)
   require('./modules/notifications/notifications.module').NotificationsModule,
