@@ -20,6 +20,9 @@ export class ServiceRequest {
   @Column({ name: 'status', length: 64, nullable: true })
   status?: string | null;
 
+  @Column({ name: 'type', length: 64, nullable: true })
+  type?: string | null;
+
   @Column({ name: 'building_id', type: 'int', nullable: true })
   @Index()
   buildingId?: number | null;

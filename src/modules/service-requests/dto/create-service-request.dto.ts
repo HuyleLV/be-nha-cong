@@ -40,4 +40,9 @@ export class CreateServiceRequestDto {
   @Type(() => Number)
   @IsInt()
   customerId?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  type?: string;
 }

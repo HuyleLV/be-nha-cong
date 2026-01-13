@@ -36,4 +36,9 @@ export class QueryServiceRequestDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  type?: string;
 }
