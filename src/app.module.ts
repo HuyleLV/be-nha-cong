@@ -91,6 +91,8 @@ import { JobsModule } from './modules/jobs/jobs.module';
   require('./modules/news/news.module').NewsModule,
   require('./modules/ctv-requests/ctv-requests.module').CtvRequestsModule,
     require('./modules/thu-chi/thu-chi.module').ThuChiModule,
+    // Bank accounts for hosts
+    require('./modules/bank-accounts/bank-accounts.module').BankAccountsModule,
     // Notifications (english module name)
   require('./modules/notifications/notifications.module').NotificationsModule,
   // Conversations / messaging
