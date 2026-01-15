@@ -35,7 +35,7 @@ export class AdminCtvRequestsController {
   async approve(@Param('id') id: string, @Req() req: any) {
     return this.svc.approve(Number(id), req?.user?.id);
   }
-
+  
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Post(':id/reject')

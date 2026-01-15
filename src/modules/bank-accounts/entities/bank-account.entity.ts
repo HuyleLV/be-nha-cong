@@ -36,6 +36,10 @@ export class BankAccount {
   @Column()
   ownerId!: number;
 
+  /** Số dư hiện tại (chủ nhà có thể nhập) */
+  @Column({ type: 'decimal', precision: 14, scale: 2, default: '0' })
+  balance!: string;
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   owner?: User;
 

@@ -28,4 +28,8 @@ export class UpdateBankAccountDto {
   @IsBoolean()
   @IsOptional()
   isDefault?: boolean;
+
+  @IsString()
+  @IsOptional()
+  balance?: string;
 }

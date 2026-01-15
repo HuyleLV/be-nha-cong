@@ -32,10 +32,10 @@ export class DepositsController {
   @Roles('admin','host')
   async create(@Req() req: any, @Body() dto: CreateDepositDto) {
     // Debug log to verify incoming payload (customerId should be present when selected in FE)
-    // Remove or guard this in production
     // eslint-disable-next-line no-console
     console.log('DepositsController.create dto:', dto);
-    const created = await this.svc.create(dto);
+    const user = req?.user ?? null;
+    const created = await this.svc.create(dto, user);
     return ok(created);
   }
 

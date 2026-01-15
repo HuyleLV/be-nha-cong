@@ -5,6 +5,7 @@ import databaseConfig from './config/database.config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { UsersModule } from './modules/users/users.module';
+import { ScheduleModule } from '@nestjs/schedule';
 import { BlogModule } from './modules/blog/blog.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UploadModule } from './upload/upload.module';
@@ -46,6 +47,8 @@ import { JobsModule } from './modules/jobs/jobs.module';
         namingStrategy: new SnakeNamingStrategy(),
       }),
     }),
+  // Scheduler (daily jobs)
+  ScheduleModule.forRoot(),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads', 'images'),
       serveRoot: '/static/images',
@@ -93,6 +96,8 @@ import { JobsModule } from './modules/jobs/jobs.module';
     require('./modules/thu-chi/thu-chi.module').ThuChiModule,
     // Bank accounts for hosts
     require('./modules/bank-accounts/bank-accounts.module').BankAccountsModule,
+    // Scheduler module (daily jobs)
+    require('./modules/scheduler/scheduler.module').SchedulerModule,
     // Notifications (english module name)
   require('./modules/notifications/notifications.module').NotificationsModule,
   // Conversations / messaging

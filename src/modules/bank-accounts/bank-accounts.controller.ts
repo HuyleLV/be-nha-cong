@@ -55,4 +55,24 @@ export class BankAccountsController {
     const userId = req?.user?.id ?? req?.user?.sub;
     return this.svc.hostDelete(Number(id), Number(userId));
   }
+
+  // Host: balances for accounts
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('host', 'admin')
+  @Get('host/balances')
+  async hostBalances(@Req() req: any) {
+    const userId = req?.user?.id ?? req?.user?.sub;
+    return this.svc.hostBalances(Number(userId));
+  }
+
+  // Host: daily cashbook report
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('host', 'admin')
+  @Get('host/daily-cashbook')
+  async hostDailyCashbook(@Req() req: any, @Query() q: any) {
+    const userId = req?.user?.id ?? req?.user?.sub;
+    const start = q?.start ?? q?.from;
+    const end = q?.end ?? q?.to;
+    return this.svc.hostDailyCashbook(Number(userId), String(start), String(end));
+  }
 }

@@ -30,8 +30,6 @@ export class ApartmentsController {
     return this.service.findByRoomStatus(q, user);
   }
 
-  // Public endpoint: apartments that match a roomStatus (e.g. 'sap_trong')
-  // Non-auth callers will only receive published and approved apartments (enforced in service)
   @UseGuards(OptionalJwtAuthGuard)
   @Get('room-status/public')
   findByRoomStatusPublic(@Query() q: any, @Req() req: any) {
@@ -49,17 +47,13 @@ export class ApartmentsController {
   @UseGuards(OptionalJwtAuthGuard)
   @Get('discounted')
   async getDiscounted(@Query() q: any, @Req() req: any) {
-    // Force discount-related defaults: published + hasDiscount + discount_desc
     const user = req.user;
     try {
       const merged: any = { ...(q || {}), hasDiscount: 'true', sort: 'discount_desc', status: 'published' };
-      // Coerce common paging params to numbers to avoid type issues when caller bypasses validation
       merged.page = Number(merged.page) || 1;
       merged.limit = Number(merged.limit) || 10;
       return await this.service.findAll(merged, user);
     } catch (err: any) {
-      // Log server error for debugging and return a readable message to client
-      // (Keep message generic to avoid leaking internals)
       console.error('GET /apartments/discounted error:', err);
       throw new BadRequestException(err?.message || 'Lỗi khi truy vấn danh sách ưu đãi');
     }
@@ -72,7 +66,7 @@ export class ApartmentsController {
     @Query('limitPerDistrict') limitPerDistrict = 4,
     @Req() req: any,
   ) {
-    const userId = req.user?.id ?? req.user?.sub ?? undefined; // tuỳ payload
+    const userId = req.user?.id ?? req.user?.sub ?? undefined; 
     return this.service.getHomeSections(citySlug, Number(limitPerDistrict), userId);
   }
 
