@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -21,26 +21,61 @@ async function bootstrap() {
   app.use(compression());
 
   // CORS Configuration - Secure
+  const logger = new Logger('Main');
+
   const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
     : ['http://localhost:3000', 'http://localhost:3001'];
 
-  app.enableCors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
-      if (!origin) return callback(null, true);
+  const isProduction = process.env.NODE_ENV === 'production';
 
-      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    credentials: true,
-    maxAge: 3600, // Cache preflight requests for 1 hour
-  });
+  // In development be permissive to avoid CORS friction (local dev, tools)
+  if (!isProduction) {
+    app.enableCors({
+      origin: true, // reflect request origin
+      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+      allowedHeaders: [
+        'Origin',
+        'X-Requested-With',
+        'Content-Type',
+        'Accept',
+        'Authorization',
+        'X-CSRF-Token',
+      ],
+      credentials: true,
+      optionsSuccessStatus: 200,
+    });
+  } else {
+    // Production: only allow configured origins
+    app.enableCors({
+      origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, Postman, server-to-server)
+        if (!origin) return callback(null, true);
+
+        // If wildcard present, allow and reflect origin
+        if (allowedOrigins.includes('*')) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+
+        logger.warn(`Blocked CORS origin: ${origin}`);
+        return callback(new Error('Not allowed by CORS'));
+      },
+      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+      allowedHeaders: [
+        'Origin',
+        'X-Requested-With',
+        'Content-Type',
+        'Accept',
+        'Authorization',
+        'X-CSRF-Token',
+      ],
+      credentials: true,
+      optionsSuccessStatus: 200,
+      maxAge: 3600, // Cache preflight requests for 1 hour
+    });
+  }
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
