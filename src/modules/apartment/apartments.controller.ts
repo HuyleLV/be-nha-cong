@@ -12,7 +12,7 @@ import { Roles } from '../auth/roles.decorator';
 @ApiTags('Apartments')
 @Controller('apartments')
 export class ApartmentsController {
-  constructor(private readonly service: ApartmentsService) {}
+  constructor(private readonly service: ApartmentsService) { }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('host', 'admin')
@@ -35,6 +35,31 @@ export class ApartmentsController {
   findByRoomStatusPublic(@Query() q: any, @Req() req: any) {
     const user = req.user;
     return this.service.findByRoomStatus(q, user);
+  }
+
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('map-search')
+  async getApartmentsByMap(
+    @Query('n') n: string,
+    @Query('s') s: string,
+    @Query('e') e: string,
+    @Query('w') w: string,
+    @Req() req: any,
+  ) {
+    // Validate bounds
+    if (!n || !s || !e || !w) {
+      // Should we throw error or return empty?
+      // For now return empty to avoid crashes on bad requests
+      return [];
+    }
+    const user = req.user;
+    return this.service.getApartmentsByBounds(
+      Number(s),
+      Number(n),
+      Number(w),
+      Number(e),
+      user
+    );
   }
 
   @UseGuards(OptionalJwtAuthGuard)
@@ -66,7 +91,7 @@ export class ApartmentsController {
     @Query('limitPerDistrict') limitPerDistrict = 4,
     @Req() req: any,
   ) {
-    const userId = req.user?.id ?? req.user?.sub ?? undefined; 
+    const userId = req.user?.id ?? req.user?.sub ?? undefined;
     return this.service.getHomeSections(citySlug, Number(limitPerDistrict), userId);
   }
 

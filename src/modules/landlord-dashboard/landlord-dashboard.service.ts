@@ -172,10 +172,89 @@ export class LandlordDashboardService {
     /**
      * Lấy revenue report
      */
+    /**
+     * Lấy revenue report (Monthly/Daily) for Charts
+     */
     async getRevenueReport(userId: number, from?: string, to?: string) {
-        return {
-            items: []
-        }
+        const apartments = await this.getLandlordApartments(userId);
+        const apartmentIds = apartments.map((a) => a.id);
+        if (apartmentIds.length === 0) return { items: [] };
+
+        // Default: Last 12 months
+        let startDate = from ? new Date(from) : new Date();
+        let endDate = to ? new Date(to) : new Date();
+        if (!from) startDate.setMonth(startDate.getMonth() - 11); // go back 11 months
+
+        // Check if range is small (<= 31 days) -> Daily grouping, else Monthly
+        const diffDays = (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24);
+        const isDaily = diffDays <= 35;
+        const dateFormat = isDaily ? '%Y-%m-%d' : '%Y-%m';
+
+        // 1. Revenue: RentSchedules (PAID)
+        // Group by period
+        const rentRevenue = await this.scheduleRepo
+            .createQueryBuilder('rs')
+            .select(`DATE_FORMAT(rs.payment_date, '${dateFormat}')`, 'period')
+            .addSelect('SUM(rs.amount_paid)', 'total')
+            .where('rs.apartment_id IN (:...ids)', { ids: apartmentIds })
+            .andWhere('rs.status = :st', { st: 'paid' })
+            .andWhere('rs.payment_date BETWEEN :start AND :end', { start: startDate, end: endDate })
+            .groupBy('period')
+            .getRawMany();
+
+        // 2. Revenue: Invoices (PAID)
+        const invoiceRevenue = await this.invoiceRepo
+            .createQueryBuilder('inv')
+            .select(`DATE_FORMAT(inv.payment_date, '${dateFormat}')`, 'period')
+            .addSelect('SUM(inv.total_amount)', 'total')
+            .where('inv.apartment_id IN (:...ids)', { ids: apartmentIds })
+            .andWhere('inv.status = :st', { st: 'paid' })
+            .andWhere('inv.payment_date BETWEEN :start AND :end', { start: startDate, end: endDate })
+            .groupBy('period')
+            .getRawMany();
+
+        // 3. Expenses: ThuChi (type=chi)
+        // Note: ThuChi relates to apartment via apartment_id
+        const expenses = await this.thuChiItemRepo
+            .createQueryBuilder('tci')
+            .leftJoin('thu_chi', 'tc', 'tc.id = tci.thu_chi_id')
+            .select(`DATE_FORMAT(tc.date, '${dateFormat}')`, 'period')
+            .addSelect('SUM(tci.amount)', 'total')
+            .where('tc.apartment_id IN (:...ids)', { ids: apartmentIds })
+            .andWhere('tc.type = :type', { type: 'chi' })
+            .andWhere('tc.date BETWEEN :start AND :end', { start: startDate, end: endDate })
+            .groupBy('period')
+            .getRawMany();
+
+        // Merge results
+        const map = new Map<string, { period: string; revenue: number; expense: number; profit: number }>();
+
+        // Helper to init
+        const getOrCreate = (p: string) => {
+            if (!map.has(p)) map.set(p, { period: p, revenue: 0, expense: 0, profit: 0 });
+            return map.get(p)!;
+        };
+
+        rentRevenue.forEach(r => {
+            const item = getOrCreate(r.period);
+            item.revenue += Number(r.total || 0);
+        });
+        invoiceRevenue.forEach(r => {
+            const item = getOrCreate(r.period);
+            item.revenue += Number(r.total || 0);
+        });
+        expenses.forEach(e => {
+            const item = getOrCreate(e.period);
+            item.expense += Number(e.total || 0);
+        });
+
+        // Calc profit and sort
+        const items = Array.from(map.values()).map(x => ({
+            ...x,
+            profit: x.revenue - x.expense
+        })).sort((a, b) => a.period.localeCompare(b.period));
+
+        return { items };
     }
 
     /**
@@ -288,10 +367,10 @@ export class LandlordDashboardService {
             return [];
         }
 
-        // Lấy apartments từ buildings
+        // Fix: Use IN operator for multiple buildings
         return this.apartmentRepo.find({
             where: {
-                buildingId: buildingIds.length > 0 ? buildingIds[0] : -1, // Tạm thời
+                buildingId: In(buildingIds),
             } as any,
         });
     }

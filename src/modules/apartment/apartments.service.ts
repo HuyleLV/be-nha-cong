@@ -9,7 +9,7 @@ import { UpdateApartmentDto } from './dto/update-apartment.dto';
 import { QueryApartmentDto } from './dto/query-apartment.dto';
 import { Location } from '../locations/entities/locations.entity';
 import { Building } from '../building/entities/building.entity';
-import { Favorite } from '../favorites/entities/favorite.entity'; 
+import { Favorite } from '../favorites/entities/favorite.entity';
 
 // slug helper
 const toSlug = (s: string) =>
@@ -29,7 +29,50 @@ export class ApartmentsService {
     @InjectRepository(Favorite) private readonly favRepo: Repository<Favorite>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Asset) private readonly assetRepo: Repository<Asset>,
-  ) {}
+  ) { }
+
+  /**
+   * Optimized viewport-based search for Map
+   * Returns lightweight objects to reduce payload size
+   */
+  async getApartmentsByBounds(
+    south: number,
+    north: number,
+    west: number,
+    east: number,
+    user?: any
+  ) {
+    const qb = this.repo.createQueryBuilder('a')
+      .select(['a.id', 'a.title', 'a.rentPrice', 'a.areaM2', 'a.lat', 'a.lng', 'a.coverImageUrl', 'a.slug', 'a.roomStatus'])
+      .where('a.status = :pub', { pub: 'published' })
+      .andWhere('a.is_approved = true')
+      // Ensure we have valid coordinates
+      .andWhere('a.lat IS NOT NULL AND a.lng IS NOT NULL')
+      // Bounding Box Logic
+      .andWhere('a.lat BETWEEN :south AND :north', { south, north })
+      .andWhere('a.lng BETWEEN :west AND :east', { west, east });
+
+    // Restrict public view to 'o_ngay' to align with list view public policy
+    // But map often wants to show everything, let's keep it consistent with findAll
+    const isAdmin = user && (user.role === 'admin' || user.role === 'Admin');
+    if (!isAdmin) {
+      qb.andWhere('a.room_status = :rs', { rs: 'o_ngay' });
+    }
+
+    const items = await qb.getMany();
+
+    // Map to lightweight response
+    return items.map(i => ({
+      id: i.id,
+      title: i.title,
+      price: i.rentPrice,
+      area: i.areaM2,
+      lat: Number(i.lat),
+      lng: Number(i.lng),
+      thumb: i.coverImageUrl,
+      slug: i.slug,
+    }));
+  }
 
   private async ensureUniqueSlug(raw: string) {
     const base = toSlug(raw);
@@ -120,8 +163,8 @@ export class ApartmentsService {
     }
 
     const currentUserId = user?.id ?? user?.sub ?? undefined;
-  const isAdminCaller = user && (user.role === 'admin' || user.role === 'Admin');
-  const isHostCaller = user && (user.role === 'host' || user.role === 'Host' || user.role === 'chu_nha' || user.role === 'owner');
+    const isAdminCaller = user && (user.role === 'admin' || user.role === 'Admin');
+    const isHostCaller = user && (user.role === 'host' || user.role === 'Host' || user.role === 'chu_nha' || user.role === 'owner');
 
     const qb = this.repo.createQueryBuilder('a')
       .take(limit)
@@ -227,9 +270,9 @@ export class ApartmentsService {
     if (f.kt !== undefined) qb.andWhere('a.has_kitchen_table = :kt', { kt: f.kt });
     if (f.kr !== undefined) qb.andWhere('a.has_range_hood = :kr', { kr: f.kr });
     if (f.fr !== undefined) qb.andWhere('a.has_fridge = :fr', { fr: f.fr });
-  if (f.elv !== undefined) qb.andWhere('a.has_elevator = :elv', { elv: f.elv });
-  if (f.pet !== undefined) qb.andWhere('a.allow_pet = :pet', { pet: f.pet });
-  if (f.ev !== undefined) qb.andWhere('a.allow_electric_vehicle = :ev', { ev: f.ev });
+    if (f.elv !== undefined) qb.andWhere('a.has_elevator = :elv', { elv: f.elv });
+    if (f.pet !== undefined) qb.andWhere('a.allow_pet = :pet', { pet: f.pet });
+    if (f.ev !== undefined) qb.andWhere('a.allow_electric_vehicle = :ev', { ev: f.ev });
 
     // lọc theo số ảnh tối thiểu
     if (q.minImages != null) {
@@ -274,13 +317,13 @@ export class ApartmentsService {
       console.error('[apartments.findAll] debug dump failed', err);
     }
 
-  const items = await qb.getMany();
-  // Build a count query without pagination
-  const countQb = qb.clone().skip(undefined as any).take(undefined as any);
-  const total = await countQb.getCount();
+    const items = await qb.getMany();
+    // Build a count query without pagination
+    const countQb = qb.clone().skip(undefined as any).take(undefined as any);
+    const total = await countQb.getCount();
 
-  // === favorited map ===
-  const favSet = await this.getFavIdSet(currentUserId, items.map(i => i.id));
+    // === favorited map ===
+    const favSet = await this.getFavIdSet(currentUserId, items.map(i => i.id));
 
     // Fetch owner summaries in a separate query to avoid TypeORM select/orderBy
     // edge-cases. This keeps the main query simple and stable.
@@ -572,7 +615,7 @@ export class ApartmentsService {
 
     return { items: rows, meta: { total, page, limit, pageCount: Math.max(1, Math.ceil(total / limit)) } };
   }
-  
+
 
   /** Chi tiết + cờ favorited (JOIN với favorite) */
   async findOneByIdOrSlug(idOrSlug: number | string, user?: any) {
@@ -628,7 +671,7 @@ export class ApartmentsService {
   }
 
   async update(id: number, dto: UpdateApartmentDto, userId?: number, userRole?: string) {
-  const apt = await this.repo.findOne({ where: { id } });
+    const apt = await this.repo.findOne({ where: { id } });
     if (!apt) throw new NotFoundException('Apartment không tồn tại');
 
     const nextLocationId = dto.locationId ?? apt.locationId;

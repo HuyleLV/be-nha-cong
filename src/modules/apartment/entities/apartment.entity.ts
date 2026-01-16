@@ -25,6 +25,7 @@ export type ApartmentStatus = 'draft' | 'published' | 'archived';
 export type ApartmentRoomStatus = 'sap_trong' | 'o_ngay' | 'het_phong';
 
 @Entity('apartments')
+@Index(['lat', 'lng']) // Support Bounding Box Search
 export class Apartment {
   @PrimaryGeneratedColumn()
   id: number;

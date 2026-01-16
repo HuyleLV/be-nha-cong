@@ -32,7 +32,7 @@ import storageConfig from './config/storage.config';
   imports: [
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 60, // 60 requests per minute
+      limit: 300, // Increased limit for map interactions
     }]),
     ConfigModule.forRoot({
       isGlobal: true,
