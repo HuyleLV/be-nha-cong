@@ -121,7 +121,9 @@ import storageConfig from './config/storage.config';
     require('./modules/system-settings/system-settings.module').SystemSettingsModule,
     require('./modules/advertisements/advertisements.module').AdvertisementsModule,
     require('./modules/categories/categories.module').CategoriesModule,
-    require('./modules/service-providers/service-providers.module').ServiceProvidersModule
+    require('./modules/service-providers/service-providers.module').ServiceProvidersModule,
+    // Finance / Reporting
+    require('./modules/finance/finance.module').FinanceModule
   ],
   providers: [
     {

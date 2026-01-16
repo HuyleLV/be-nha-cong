@@ -33,6 +33,18 @@ export class Invoice {
   @Column({ name: 'created_by', type: 'int', nullable: true })
   createdBy: number | null;
 
+  @Column({ name: 'total_amount', type: 'decimal', precision: 14, scale: 2, default: 0 })
+  totalAmount: string;
+
+  @Column({ name: 'paid_amount', type: 'decimal', precision: 14, scale: 2, default: 0 })
+  paidAmount: string;
+
+  @Column({ name: 'payment_date', type: 'datetime', nullable: true })
+  paymentDate: Date | null;
+
+  @Column({ type: 'enum', enum: ['draft', 'pending', 'paid', 'overdue', 'cancelled'], default: 'draft' })
+  status: 'draft' | 'pending' | 'paid' | 'overdue' | 'cancelled';
+
   @OneToMany(() => InvoiceItem, (it: InvoiceItem) => it.invoice, { cascade: true })
   items: InvoiceItem[];
 }

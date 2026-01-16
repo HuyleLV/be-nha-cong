@@ -60,6 +60,12 @@ export class Contract {
   @Column({ name: 'service_fees', type: 'simple-json', nullable: true })
   serviceFees?: any[] | null;
 
+  @Column({ name: 'commission_amount', type: 'decimal', precision: 12, scale: 2, default: 0 })
+  commissionAmount: string;
+
+  @Column({ name: 'commission_status', type: 'enum', enum: ['pending', 'paid'], default: 'pending' })
+  commissionStatus: 'pending' | 'paid';
+
   @Column({ type: 'enum', enum: ContractStatus, default: ContractStatus.ACTIVE })
   status: ContractStatus;
 
