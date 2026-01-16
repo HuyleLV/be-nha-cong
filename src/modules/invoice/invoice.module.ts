@@ -9,6 +9,6 @@ import { InvoiceController } from './invoice.controller';
   imports: [TypeOrmModule.forFeature([Invoice, InvoiceItem])],
   controllers: [InvoiceController],
   providers: [InvoiceService],
-  exports: [TypeOrmModule]
+  exports: [TypeOrmModule, InvoiceService]
 })
-export class InvoiceModule {}
+export class InvoiceModule { }

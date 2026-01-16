@@ -38,14 +38,14 @@ import { Notification } from './modules/notifications/entities/notification.enti
 import { Task } from './modules/tasks/entities/task.entity';
 import { ZaloTokenEntity } from './modules/zalo/zalo-token.entity';
 // import { Payment } from './modules/payments/entities/payment.entity';
-// import { RentSchedule } from './modules/rent-schedules/entities/rent-schedule.entity';
+import { RentSchedule } from './modules/rent-schedules/entities/rent-schedule.entity';
 // import { Commission } from './modules/commissions/entities/commission.entity';
 import { ServiceProvider } from './modules/service-providers/entities/service-provider.entity';
 // import { ServiceProviderReview } from './modules/service-provider-reviews/entities/service-provider-review.entity';
 // import { ServiceBooking } from './modules/service-bookings/entities/service-booking.entity';
 // import { VehicleBooking } from './modules/vehicle-bookings/entities/vehicle-booking.entity';
-// import { HostSettings } from './modules/host-settings/entities/host-settings.entity';
-// import { SystemSettings } from './modules/system-settings/entities/system-settings.entity';
+import { HostSettings } from './modules/host-settings/entities/host-settings.entity';
+import { SystemSettings } from './modules/system-settings/entities/system-settings.entity';
 import { Advertisement } from './modules/advertisements/entities/advertisement.entity';
 import { Category } from './modules/categories/entities/category.entity';
 import { News } from './modules/news/entities/news.entity';
@@ -93,14 +93,14 @@ export const dataSourceOptions: DataSourceOptions = {
     Task,
     ZaloTokenEntity,
     // Payment,
-    // RentSchedule,
+    RentSchedule,
     // Commission,
     ServiceProvider,
     // ServiceProviderReview,
     // ServiceBooking,
     // VehicleBooking,
-    // HostSettings,
-    // SystemSettings,
+    HostSettings,
+    SystemSettings,
     Advertisement,
     Category,
     // Conversation,

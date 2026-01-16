@@ -32,7 +32,7 @@ import storageConfig from './config/storage.config';
   imports: [
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 60, // 60 requests per minute
+      limit: 300, // Increased limit for map interactions
     }]),
     ConfigModule.forRoot({
       isGlobal: true,
@@ -80,6 +80,11 @@ import storageConfig from './config/storage.config';
     require('./modules/deposits/deposits.module').DepositsModule,
     // Contracts module
     require('./modules/contracts/contracts.module').ContractsModule,
+    require('./modules/rent-schedules/rent-schedules.module').RentSchedulesModule,
+    require('./modules/rent-calculation/rent-calculation.module').RentCalculationModule,
+    require('./modules/automated-invoice/automated-invoice.module').AutomatedInvoiceModule,
+    require('./modules/admin-dashboard/admin-dashboard.module').AdminDashboardModule,
+    require('./modules/landlord-dashboard/landlord-dashboard.module').LandlordDashboardModule,
     LocationsModule,
     ApartmentsModule,
     PartnersModule,
@@ -112,9 +117,13 @@ import storageConfig from './config/storage.config';
     // Tasks (english module name)
     require('./modules/tasks/tasks.module').TasksModule,
     // Newly ported modules
+    require('./modules/host-settings/host-settings.module').HostSettingsModule,
+    require('./modules/system-settings/system-settings.module').SystemSettingsModule,
     require('./modules/advertisements/advertisements.module').AdvertisementsModule,
     require('./modules/categories/categories.module').CategoriesModule,
-    require('./modules/service-providers/service-providers.module').ServiceProvidersModule
+    require('./modules/service-providers/service-providers.module').ServiceProvidersModule,
+    // Finance / Reporting
+    require('./modules/finance/finance.module').FinanceModule
   ],
   providers: [
     {
