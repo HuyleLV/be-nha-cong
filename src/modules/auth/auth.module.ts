@@ -29,7 +29,7 @@ import { ZaloModule } from '../zalo/zalo.module';
           secret,
           signOptions: {
             // Extend default token lifetime to 24 hours unless overridden in env
-            expiresIn: cfg.get<string>('JWT_EXPIRES_IN') ?? '24h',
+            expiresIn: (cfg.get<string>('JWT_EXPIRES_IN') ?? '24h') as any,
           },
         };
       },
@@ -39,4 +39,4 @@ import { ZaloModule } from '../zalo/zalo.module';
   controllers: [AuthController],
   exports: [AuthService, JwtModule], // export JwtModule nếu nơi khác cần JwtService
 })
-export class AuthModule {}
+export class AuthModule { }

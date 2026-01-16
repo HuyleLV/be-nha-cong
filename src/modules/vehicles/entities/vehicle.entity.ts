@@ -38,6 +38,23 @@ export class Vehicle {
   @Column({ name: 'photo', length: 255, nullable: true })
   photo?: string | null;
 
+  // New fields ported from nhacong-pro
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Index()
+  slug?: string | null;
+
+  @Column({ name: 'approval_status', type: 'varchar', length: 50, nullable: true, default: 'approved' })
+  approvalStatus?: string | null;
+
+  @Column({ name: 'is_approved', type: 'boolean', default: true })
+  isApproved?: boolean;
+
+  @Column({ name: 'is_verified', type: 'boolean', default: true })
+  isVerified?: boolean;
+
+  @Column({ name: 'status', type: 'varchar', length: 50, default: 'available' })
+  status: string;
+
   @Column({ name: 'created_by', type: 'bigint', nullable: true })
   createdBy?: number | null;
 

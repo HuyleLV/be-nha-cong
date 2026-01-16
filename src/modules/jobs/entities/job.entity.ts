@@ -52,6 +52,12 @@ export class Job {
   @Column({ type: 'varchar', length: 20, default: 'draft' })
   status: JobStatus;
 
+  @Column({ name: 'is_approved', type: 'boolean', default: false })
+  isApproved?: boolean;
+
+  @Column({ name: 'approval_status', type: 'varchar', length: 50, nullable: true, default: 'pending' })
+  approvalStatus?: string | null;
+
   @Column({ type: 'datetime', nullable: true })
   publishedAt?: Date | null;
 
