@@ -25,6 +25,7 @@ export type ApartmentStatus = 'draft' | 'published' | 'archived';
 export type ApartmentRoomStatus = 'sap_trong' | 'o_ngay' | 'het_phong';
 
 @Entity('apartments')
+@Index(['lat', 'lng']) // Support Bounding Box Search
 export class Apartment {
   @PrimaryGeneratedColumn()
   id: number;
@@ -48,12 +49,12 @@ export class Apartment {
 
   @Column({ name: 'location_id', type: 'int' })
   @Index()
-  locationId: number; 
+  locationId: number;
   // Khóa ngoại Location (quận/huyện…). Bắt buộc.
 
   @Column({ name: 'building_id', type: 'int', nullable: true })
   @Index()
-  buildingId?: number | null; 
+  buildingId?: number | null;
   // Optional: thuộc tòa nhà nào (có thể null nếu phòng lẻ).
 
   /* ========== Address & Geo ========== */
@@ -81,7 +82,7 @@ export class Apartment {
   @Column({ name: 'living_rooms', default: 0 })
   livingRooms: number;
   // Số phòng khách (nếu phòng khép kín nhỏ có thể =0).
-  
+
   @Column({ name: 'room_code', length: 50, nullable: true })
   roomCode?: string;
   // Mã phòng/căn hộ nội bộ (ví dụ: P302, A12). Dùng để hiển thị hoặc tra cứu nhanh trong admin.
@@ -105,6 +106,10 @@ export class Apartment {
   @Column({ default: 'VND', length: 10 })
   currency: string;
   // Đơn vị tiền tệ (mặc định VND).
+
+  @Column({ name: 'discount_percent', type: 'int', unsigned: true, nullable: true })
+  discountPercent?: number | null;
+  // Ưu đãi theo % (% giảm giá). Null nếu không có.
 
   @Column({ name: 'discount_amount', type: 'numeric', precision: 12, scale: 2, nullable: true })
   discountAmount?: string | null;
@@ -141,7 +146,7 @@ export class Apartment {
 
   @Column({ name: 'images', type: 'simple-json', nullable: true })
   images?: string[];
-  
+
   @Column({ name: 'deposit_amount', type: 'numeric', precision: 12, scale: 2, nullable: true })
   depositAmount?: string | null;
   // Danh sách URL ảnh (gallery). BE đảm bảo videoUrl nếu có sẽ đứng đầu thông qua logic riêng.

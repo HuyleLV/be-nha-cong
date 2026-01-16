@@ -1,15 +1,15 @@
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    Index,
-    CreateDateColumn,
-    UpdateDateColumn,
-    ManyToOne,
-    JoinColumn
-  } from 'typeorm';
-  
-export type LocationLevel = 'Province' | 'City' | 'District' | 'Street';
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  Index,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn
+} from 'typeorm';
+
+export type LocationLevel = 'Province' | 'City' | 'District' | 'Street' | 'Ward';
 
 @Entity('locations')
 export class Location {
@@ -23,9 +23,9 @@ export class Location {
   @Column({ length: 200, unique: true, nullable: true })
   slug: string;
 
-  @Column({ type: 'enum', enum: ['Province', 'City', 'District', 'Street']})
+  @Column({ type: 'enum', enum: ['Province', 'City', 'District', 'Street', 'Ward'] })
   level: LocationLevel;
-  
+
   @ManyToOne(() => Location, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'parent_id' })
   parent?: Location | null;

@@ -1,73 +1,75 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# Nhà Cộng Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS-based REST API backend for the Nhà Cộng property rental management platform.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 🚀 Quick Start
 
-## Description
+### Prerequisites
+- Node.js 18+ and npm
+- MySQL 8.0+
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Installation
+### Installation
 
 ```bash
-$ npm install
+# Install dependencies
+npm install
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env with your database credentials and JWT secret
+
+# Start development server
+npm run start:dev
 ```
 
-## Running the app
+The API will be available at `http://localhost:5000`
+API documentation (Swagger) will be available at `http://localhost:5000/docs`
+
+## 📁 Project Structure
+
+```
+be-nha-cong/
+├── src/
+│   ├── modules/           # Feature modules (Auth, Users, Apartment, etc.)
+│   ├── config/            # Configuration files
+│   ├── common/            # Shared utilities (DTOs, filters, guards)
+│   ├── upload/            # File upload handling
+│   ├── app.module.ts      # Root module
+│   └── main.ts            # Application entry point
+└── uploads/               # Uploaded files
+```
+
+## 🛠️ Available Scripts
 
 ```bash
-# development
-$ npm run start
+# Development
+npm run start:dev      # Start in watch mode
 
-# watch mode
-$ npm run start:dev
+# Production
+npm run build          # Build for production
+npm run start:prod     # Run production build
 
-# production mode
-$ npm run start:prod
+# Code Quality
+npm run lint           # Lint code
+npm run format         # Format code with Prettier
 ```
 
-## Test
+## 🔧 Configuration
 
-```bash
-# unit tests
-$ npm run test
+### Environment Variables
+Key variables to check in your `.env`:
+- `PORT`: Server port (default: 5000)
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`
+- `JWT_SECRET`
 
-# e2e tests
-$ npm run test:e2e
+### Database
+The application uses TypeORM. In development mode, `synchronize: true` is often enabled (be careful!). For production, migrations should be used.
 
-# test coverage
-$ npm run test:cov
-```
+## 📡 API Endpoints (Key Modules)
+- `/api/auth` - Authentication & Registration
+- `/api/users` - User profiles
+- `/api/apartments` - Apartment management
+- `/api/contracts` - Rental contracts
+- `/api/invoices` - Billing
 
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](LICENSE).
+For full documentation, visit the Swagger UI at `/docs`.
