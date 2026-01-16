@@ -27,6 +27,22 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import storageConfig from './config/storage.config';
+import { MeterReadingModule } from './modules/meter-reading/meter-reading.module';
+import { InvoiceModule } from './modules/invoice/invoice.module';
+import { DepositsModule } from './modules/deposits/deposits.module';
+import { ContractsModule } from './modules/contracts/contracts.module';
+import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { ServicesModule } from './modules/services/services.module';
+import { ServiceRequestsModule } from './modules/service-requests/service-requests.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { NewsModule } from './modules/news/news.module';
+import { CtvRequestsModule } from './modules/ctv-requests/ctv-requests.module';
+import { ThuChiModule } from './modules/thu-chi/thu-chi.module';
+import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ConversationsModule } from './modules/conversations/conversations.module';
+import { TasksModule } from './modules/tasks/tasks.module';
 
 @Module({
   imports: [
@@ -85,6 +101,10 @@ import storageConfig from './config/storage.config';
     require('./modules/automated-invoice/automated-invoice.module').AutomatedInvoiceModule,
     require('./modules/admin-dashboard/admin-dashboard.module').AdminDashboardModule,
     require('./modules/landlord-dashboard/landlord-dashboard.module').LandlordDashboardModule,
+    MeterReadingModule,
+    InvoiceModule,
+    DepositsModule,
+    ContractsModule,
     LocationsModule,
     ApartmentsModule,
     PartnersModule,
@@ -97,12 +117,15 @@ import storageConfig from './config/storage.config';
     require('./modules/service-requests/service-requests.module').ServiceRequestsModule,
     // Reports (warranty / repair / fire / complaint)
     require('./modules/reports/reports.module').ReportsModule,
+    VehiclesModule,
+    ServicesModule,
+    ServiceRequestsModule,
+    ReportsModule,
     OwnershipsModule,
     FavoritesModule,
     ViewingsModule,
     CommentsModule,
-    JobsModule
-    ,
+    JobsModule,
     require('./modules/news/news.module').NewsModule,
     require('./modules/ctv-requests/ctv-requests.module').CtvRequestsModule,
     require('./modules/thu-chi/thu-chi.module').ThuChiModule,
@@ -130,6 +153,15 @@ import storageConfig from './config/storage.config';
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    JobsModule,
+    NewsModule,
+    CtvRequestsModule,
+    ThuChiModule,
+    BankAccountsModule,
+    SchedulerModule,
+    NotificationsModule,
+    ConversationsModule,
+    TasksModule
   ],
 })
 export class AppModule { }

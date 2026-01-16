@@ -283,6 +283,11 @@ export class ApartmentsService {
       );
     }
 
+    // If requested, only return apartments that have short review fields set
+    if ((q as any).shortOnly === 'true') {
+      qb.andWhere('(a.short IS NOT NULL OR a.short_thumb IS NOT NULL)');
+    }
+
     // Sorting
     const sort = (q as any).sort as string | undefined;
     if (sort === 'discount_desc' || sort === 'fill_payment_desc') {
