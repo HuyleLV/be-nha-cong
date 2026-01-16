@@ -48,6 +48,7 @@ import { ServiceProvider } from './modules/service-providers/entities/service-pr
 // import { SystemSettings } from './modules/system-settings/entities/system-settings.entity';
 import { Advertisement } from './modules/advertisements/entities/advertisement.entity';
 import { Category } from './modules/categories/entities/category.entity';
+import { News } from './modules/news/entities/news.entity';
 // import { Conversation } from './modules/chat/entities/conversation.entity';
 // import { Message } from './modules/chat/entities/message.entity';
 import { BankAccount } from './modules/bank-accounts/entities/bank-account.entity';
@@ -73,6 +74,7 @@ export const dataSourceOptions: DataSourceOptions = {
     ApartmentView,
     Comment,
     Blog,
+    News,
     Job,
     JobApplication,
     Partners,
