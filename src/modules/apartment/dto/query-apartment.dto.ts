@@ -182,4 +182,9 @@ export class QueryApartmentDto {
   @ApiPropertyOptional({ description: 'sắp xếp', enum: ['discount_desc'] })
   @IsOptional() @IsString()
   sort?: 'discount_desc' | string;
+
+  @ApiPropertyOptional({ description: 'Chỉ trả về records có short review (short IS NOT NULL OR short_thumb IS NOT NULL)', required: false })
+  @IsOptional()
+  @IsBooleanString()
+  shortOnly?: string;
 }

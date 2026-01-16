@@ -24,6 +24,22 @@ import { ViewingsModule } from './modules/viewings/viewings.module';
 import mailConfig from './config/mail.config';
 import { CommentsModule } from './modules/comments/comments.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { MeterReadingModule } from './modules/meter-reading/meter-reading.module';
+import { InvoiceModule } from './modules/invoice/invoice.module';
+import { DepositsModule } from './modules/deposits/deposits.module';
+import { ContractsModule } from './modules/contracts/contracts.module';
+import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { ServicesModule } from './modules/services/services.module';
+import { ServiceRequestsModule } from './modules/service-requests/service-requests.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { NewsModule } from './modules/news/news.module';
+import { CtvRequestsModule } from './modules/ctv-requests/ctv-requests.module';
+import { ThuChiModule } from './modules/thu-chi/thu-chi.module';
+import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ConversationsModule } from './modules/conversations/conversations.module';
+import { TasksModule } from './modules/tasks/tasks.module';
 
 @Module({
   imports: [
@@ -47,8 +63,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
         namingStrategy: new SnakeNamingStrategy(),
       }),
     }),
-  // Scheduler (daily jobs)
-  ScheduleModule.forRoot(),
+    ScheduleModule.forRoot(),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads', 'images'),
       serveRoot: '/static/images',
@@ -65,45 +80,33 @@ import { JobsModule } from './modules/jobs/jobs.module';
     UsersModule,
     BlogModule,
     AuthModule,
-  // Meter readings (host) module
-  require('./modules/meter-reading/meter-reading.module').MeterReadingModule,
-  // Invoices module
-  require('./modules/invoice/invoice.module').InvoiceModule,
-    // Deposits module
-    require('./modules/deposits/deposits.module').DepositsModule,
-  // Contracts module
-  require('./modules/contracts/contracts.module').ContractsModule,
+    MeterReadingModule,
+    InvoiceModule,
+    DepositsModule,
+    ContractsModule,
     LocationsModule,
     ApartmentsModule,
     PartnersModule,
     BuildingsModule,
     BedsModule,
     AssetsModule,
-    // Vehicles module
-    require('./modules/vehicles/vehicles.module').VehiclesModule,
-  require('./modules/services/services.module').ServicesModule,
-    require('./modules/service-requests/service-requests.module').ServiceRequestsModule,
-  // Reports (warranty / repair / fire / complaint)
-  require('./modules/reports/reports.module').ReportsModule,
+    VehiclesModule,
+    ServicesModule,
+    ServiceRequestsModule,
+    ReportsModule,
     OwnershipsModule,
     FavoritesModule,
     ViewingsModule,
     CommentsModule,
-    JobsModule
-    ,
-  require('./modules/news/news.module').NewsModule,
-  require('./modules/ctv-requests/ctv-requests.module').CtvRequestsModule,
-    require('./modules/thu-chi/thu-chi.module').ThuChiModule,
-    // Bank accounts for hosts
-    require('./modules/bank-accounts/bank-accounts.module').BankAccountsModule,
-    // Scheduler module (daily jobs)
-    require('./modules/scheduler/scheduler.module').SchedulerModule,
-    // Notifications (english module name)
-  require('./modules/notifications/notifications.module').NotificationsModule,
-  // Conversations / messaging
-  require('./modules/conversations/conversations.module').ConversationsModule,
-    // Tasks (english module name)
-    require('./modules/tasks/tasks.module').TasksModule
+    JobsModule,
+    NewsModule,
+    CtvRequestsModule,
+    ThuChiModule,
+    BankAccountsModule,
+    SchedulerModule,
+    NotificationsModule,
+    ConversationsModule,
+    TasksModule
   ],
 })
 export class AppModule {}
