@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
@@ -28,6 +28,18 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import storageConfig from './config/storage.config';
 import { MeterReadingModule } from './modules/meter-reading/meter-reading.module';
+import { RentSchedulesModule } from './modules/rent-schedules/rent-schedules.module';
+import { RentCalculationModule } from './modules/rent-calculation/rent-calculation.module';
+import { AutomatedInvoiceModule } from './modules/automated-invoice/automated-invoice.module';
+import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module';
+import { LandlordDashboardModule } from './modules/landlord-dashboard/landlord-dashboard.module';
+import { HostSettingsModule } from './modules/host-settings/host-settings.module';
+import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
+import { AdvertisementsModule } from './modules/advertisements/advertisements.module';
+import { CategoriesModule } from './modules/categories/categories.module';
+import { ServiceProvidersModule } from './modules/service-providers/service-providers.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import * as cors from 'cors';
 import { InvoiceModule } from './modules/invoice/invoice.module';
 import { DepositsModule } from './modules/deposits/deposits.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
@@ -84,69 +96,55 @@ import { TasksModule } from './modules/tasks/tasks.module';
       rootPath: join(process.cwd(), 'uploads', 'docs'),
       serveRoot: '/static/docs',
     }),
-    UploadModule,
-    UsersModule,
-    BlogModule,
-    AuthModule,
-    // Meter readings (host) module
-    require('./modules/meter-reading/meter-reading.module').MeterReadingModule,
-    // Invoices module
-    require('./modules/invoice/invoice.module').InvoiceModule,
-    // Deposits module
-    require('./modules/deposits/deposits.module').DepositsModule,
-    // Contracts module
-    require('./modules/contracts/contracts.module').ContractsModule,
-    require('./modules/rent-schedules/rent-schedules.module').RentSchedulesModule,
-    require('./modules/rent-calculation/rent-calculation.module').RentCalculationModule,
-    require('./modules/automated-invoice/automated-invoice.module').AutomatedInvoiceModule,
-    require('./modules/admin-dashboard/admin-dashboard.module').AdminDashboardModule,
-    require('./modules/landlord-dashboard/landlord-dashboard.module').LandlordDashboardModule,
-    MeterReadingModule,
-    InvoiceModule,
-    DepositsModule,
-    ContractsModule,
-    LocationsModule,
-    ApartmentsModule,
-    PartnersModule,
-    BuildingsModule,
-    BedsModule,
-    AssetsModule,
-    // Vehicles module
-    require('./modules/vehicles/vehicles.module').VehiclesModule,
-    require('./modules/services/services.module').ServicesModule,
-    require('./modules/service-requests/service-requests.module').ServiceRequestsModule,
-    // Reports (warranty / repair / fire / complaint)
-    require('./modules/reports/reports.module').ReportsModule,
-    VehiclesModule,
-    ServicesModule,
-    ServiceRequestsModule,
-    ReportsModule,
-    OwnershipsModule,
-    FavoritesModule,
-    ViewingsModule,
-    CommentsModule,
-    JobsModule,
-    require('./modules/news/news.module').NewsModule,
-    require('./modules/ctv-requests/ctv-requests.module').CtvRequestsModule,
-    require('./modules/thu-chi/thu-chi.module').ThuChiModule,
-    // Bank accounts for hosts
-    require('./modules/bank-accounts/bank-accounts.module').BankAccountsModule,
-    // Scheduler module (daily jobs)
-    require('./modules/scheduler/scheduler.module').SchedulerModule,
-    // Notifications (english module name)
-    require('./modules/notifications/notifications.module').NotificationsModule,
-    // Conversations / messaging
-    require('./modules/conversations/conversations.module').ConversationsModule,
-    // Tasks (english module name)
-    require('./modules/tasks/tasks.module').TasksModule,
-    // Newly ported modules
-    require('./modules/host-settings/host-settings.module').HostSettingsModule,
-    require('./modules/system-settings/system-settings.module').SystemSettingsModule,
-    require('./modules/advertisements/advertisements.module').AdvertisementsModule,
-    require('./modules/categories/categories.module').CategoriesModule,
-    require('./modules/service-providers/service-providers.module').ServiceProvidersModule,
-    // Finance / Reporting
-    require('./modules/finance/finance.module').FinanceModule
+  UploadModule,
+  UsersModule,
+  BlogModule,
+  AuthModule,
+
+  // Core feature modules
+  MeterReadingModule,
+  InvoiceModule,
+  DepositsModule,
+  ContractsModule,
+  RentSchedulesModule,
+  RentCalculationModule,
+  AutomatedInvoiceModule,
+  AdminDashboardModule,
+  LandlordDashboardModule,
+
+  LocationsModule,
+  ApartmentsModule,
+  PartnersModule,
+  BuildingsModule,
+  BedsModule,
+  AssetsModule,
+  VehiclesModule,
+  ServicesModule,
+  ServiceRequestsModule,
+  ReportsModule,
+  OwnershipsModule,
+  FavoritesModule,
+  ViewingsModule,
+  CommentsModule,
+  JobsModule,
+  NewsModule,
+  CtvRequestsModule,
+  ThuChiModule,
+
+  // Finance & utilities
+  BankAccountsModule,
+  SchedulerModule,
+  NotificationsModule,
+  ConversationsModule,
+  TasksModule,
+
+  // Newly ported / admin modules
+  HostSettingsModule,
+  SystemSettingsModule,
+  AdvertisementsModule,
+  CategoriesModule,
+  ServiceProvidersModule,
+  FinanceModule,
   ],
   providers: [
     {
@@ -164,4 +162,8 @@ import { TasksModule } from './modules/tasks/tasks.module';
     TasksModule
   ],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(cors({ origin: true, credentials: true })).forRoutes('*');
+  }
+}
