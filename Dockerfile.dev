@@ -9,7 +9,8 @@ COPY tsconfig*.json ./
 COPY nest-cli.json ./
 
 # Install all dependencies (including dev dependencies)
-RUN npm ci
+# Prefer locked install; fall back to npm install if package-lock.json is not present
+RUN if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
 
 # Expose port
 EXPOSE 5000
