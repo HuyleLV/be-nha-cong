@@ -9,7 +9,7 @@ import { UpdateBankAccountDto } from './dto/update-bank-account.dto';
 
 @Controller('bank-accounts')
 export class BankAccountsController {
-  constructor(private readonly svc: BankAccountsService) {}
+  constructor(private readonly svc: BankAccountsService) { }
 
   // Host: list my bank accounts
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -18,6 +18,26 @@ export class BankAccountsController {
   async hostList(@Query() q: QueryBankAccountDto, @Req() req: any) {
     const userId = req?.user?.id ?? req?.user?.sub;
     return this.svc.hostList(Number(userId), q);
+  }
+
+  // Host: balances for accounts
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('host', 'admin')
+  @Get('host/balances')
+  async hostBalances(@Req() req: any) {
+    const userId = req?.user?.id ?? req?.user?.sub;
+    return this.svc.hostBalances(Number(userId));
+  }
+
+  // Host: daily cashbook report
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('host', 'admin')
+  @Get('host/daily-cashbook')
+  async hostDailyCashbook(@Req() req: any, @Query() q: any) {
+    const userId = req?.user?.id ?? req?.user?.sub;
+    const start = q?.start ?? q?.from;
+    const end = q?.end ?? q?.to;
+    return this.svc.hostDailyCashbook(Number(userId), String(start), String(end));
   }
 
   // Host: get one
@@ -54,25 +74,5 @@ export class BankAccountsController {
   async hostDelete(@Param('id') id: string, @Req() req: any) {
     const userId = req?.user?.id ?? req?.user?.sub;
     return this.svc.hostDelete(Number(id), Number(userId));
-  }
-
-  // Host: balances for accounts
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('host', 'admin')
-  @Get('host/balances')
-  async hostBalances(@Req() req: any) {
-    const userId = req?.user?.id ?? req?.user?.sub;
-    return this.svc.hostBalances(Number(userId));
-  }
-
-  // Host: daily cashbook report
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('host', 'admin')
-  @Get('host/daily-cashbook')
-  async hostDailyCashbook(@Req() req: any, @Query() q: any) {
-    const userId = req?.user?.id ?? req?.user?.sub;
-    const start = q?.start ?? q?.from;
-    const end = q?.end ?? q?.to;
-    return this.svc.hostDailyCashbook(Number(userId), String(start), String(end));
   }
 }
