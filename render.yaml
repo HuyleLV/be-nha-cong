@@ -1,0 +1,28 @@
+services:
+  # Backend Deployment (NestJS)
+  - type: web
+    name: nhacong-backend
+    env: node
+    region: singapore
+    plan: free
+    rootDir: .
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      # You must add these manually in Render Dashboard:
+      # - DB_HOST
+      # - DB_PORT
+      # - DB_USERNAME
+      # - DB_PASSWORD
+      # - DB_NAME
+      # - JWT_SECRET
+      # - AWS_ACCESS_KEY_ID
+      # - AWS_SECRET_ACCESS_KEY
+      # - AWS_BUCKET_NAME
+    autoDeploy: false
+
+# Frontend Deployment is recommended on Vercel, not Render, for best Next.js performance.
