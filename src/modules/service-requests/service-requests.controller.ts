@@ -12,10 +12,11 @@ import { Roles } from '../auth/roles.decorator';
 @ApiTags('ServiceRequests')
 @Controller('service-requests')
 export class ServiceRequestsController {
-  constructor(private readonly service: ServiceRequestsService) {}
+  constructor(private readonly service: ServiceRequestsService) { }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('host', 'admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('host', 'admin', 'customer')
   @Post()
   create(@Body() dto: CreateServiceRequestDto, @Req() req: any) {
     const userId = req.user?.id ?? req.user?.sub ?? undefined;

@@ -11,38 +11,38 @@ import { Roles } from '../auth/roles.decorator';
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   @Get()
-  @Roles('admin', 'host')
+  @Roles('admin', 'host', 'owner')
   async findAll(@Req() req: any, @Query() query: any) {
     const { items, meta } = await this.usersService.findAll(query, req.user);
     return ok(items, meta);
   }
 
   @Get(':id')
-  @Roles('admin', 'host')
+  @Roles('admin', 'host', 'owner')
   async findOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     const user = await this.usersService.findOne(id, req.user);
     return ok(user);
   }
 
   @Post()
-  @Roles('admin', 'host')
+  @Roles('admin', 'host', 'owner')
   async create(@Req() req: any, @Body() dto: CreateUserDto) {
     const created = await this.usersService.create(dto, req.user);
     return ok(created);
   }
 
   @Patch(':id')
-  @Roles('admin','host')
+  @Roles('admin', 'host', 'owner')
   async update(@Req() req: any, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
     const updated = await this.usersService.update(id, dto, req.user);
     return ok(updated);
   }
 
   @Delete(':id')
-  @Roles('admin', 'host')
+  @Roles('admin', 'host', 'owner')
   async remove(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     const result = await this.usersService.remove(id, req.user);
     return ok(result);

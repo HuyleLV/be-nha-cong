@@ -4,9 +4,14 @@ import { CreateContractDto } from './dto/create-contract.dto';
 import { UpdateContractDto } from './dto/update-contract.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+import { DepositsService } from '../deposits/deposits.service';
+
 @Controller('contracts')
 export class ContractsController {
-  constructor(private readonly svc: ContractsService) {}
+  constructor(
+    private readonly svc: ContractsService,
+    private readonly depositsService: DepositsService,
+  ) { }
 
   @UseGuards(JwtAuthGuard)
   @Get()
@@ -24,6 +29,15 @@ export class ContractsController {
     const ownerId = req.user?.id;
     const s = await this.svc.stats(ownerId);
     return { data: s };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my-rental-history')
+  async myRentalHistory(@Req() req: any) {
+    const customerId = req.user?.id;
+    const contracts = await this.svc.findAll({ customerId, limit: 100 });
+    const deposits = await this.depositsService.findAll({ customerId, limit: 100 });
+    return { data: { contracts: contracts.items, deposits: deposits.items } };
   }
 
   @UseGuards(JwtAuthGuard)

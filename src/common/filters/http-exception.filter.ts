@@ -72,12 +72,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
         // fallback: leave original
       }
 
-      // Always respond with HTTP 200 and a normalized payload so FE can display the message
-      return response.status(HttpStatus.OK).json(ok({ message }));
+      // Use the actual exception status
+      return response.status(status).json({
+        success: false,
+        data: null,
+        message: message, // Flatten message to top level or keep in data? Standard is usually separate
+        error: res
+      });
     }
 
     // Non-HTTP exceptions (unexpected)
     console.error('Unexpected error at', request.url, exception);
-    return response.status(HttpStatus.OK).json(ok({ message }));
+    return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: 'Internal server error'
+    });
   }
 }

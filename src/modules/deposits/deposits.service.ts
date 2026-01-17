@@ -15,17 +15,20 @@ export class DepositsService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Apartment) private readonly aptRepo: Repository<Apartment>,
     @InjectRepository(BankAccount) private readonly bankRepo: Repository<BankAccount>,
-  ) {}
+  ) { }
 
   /**
    * Find deposits with optional pagination. Returns { items, total, page, limit }
    */
-  async findAll(params?: { page?: number; limit?: number }) {
+  async findAll(params?: { page?: number; limit?: number; customerId?: number }) {
     const page = Math.max(1, Number(params?.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(params?.limit) || 20));
     const skip = (page - 1) * limit;
 
-    const [items, total] = await this.repo.findAndCount({ order: { createdAt: 'DESC' }, skip, take: limit });
+    const where: any = {};
+    if (params?.customerId) where.customerId = params.customerId;
+
+    const [items, total] = await this.repo.findAndCount({ where, order: { createdAt: 'DESC' }, skip, take: limit });
 
     // Fetch customer names for items that have customerId
     const custIds = Array.from(new Set(items.filter(i => i.customerId).map(i => i.customerId!)));

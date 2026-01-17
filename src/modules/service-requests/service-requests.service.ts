@@ -17,7 +17,7 @@ export class ServiceRequestsService {
     @InjectRepository(Contract) private readonly contractRepo: Repository<Contract>,
     @InjectRepository(Deposit) private readonly depositRepo: Repository<Deposit>,
     private readonly gateway: NotificationsGateway,
-  ) {}
+  ) { }
 
   async create(dto: CreateServiceRequestDto, userId?: number) {
     // Normalize requestedAt (accept ISO string from DTO)
@@ -26,7 +26,7 @@ export class ServiceRequestsService {
       try { payload.requestedAt = new Date(payload.requestedAt); } catch (e) { payload.requestedAt = null; }
     }
 
-  // Auto-attach building/apartment by requester (customer) latest contract or deposit
+    // Auto-attach building/apartment by requester (customer) latest contract or deposit
     if ((!payload.buildingId && !payload.apartmentId) && userId) {
       try {
         // Prefer latest contract
@@ -55,7 +55,7 @@ export class ServiceRequestsService {
     const reqType = (payload.type || '').trim();
     const custId = payload.customerId || userId || null;
     if (reqType && custId) {
-      const start = new Date(); start.setHours(0,0,0,0);
+      const start = new Date(); start.setHours(0, 0, 0, 0);
       const end = new Date(start); end.setDate(start.getDate() + 1);
       const qb = this.repo.createQueryBuilder('r')
         .where('r.type = :tp', { tp: reqType })
@@ -67,16 +67,16 @@ export class ServiceRequestsService {
       }
     }
 
-  const ent = this.repo.create(payload);
-  const res = await this.repo.save(ent as any);
-  const saved: ServiceRequest = (Array.isArray(res) ? res[0] : (res as ServiceRequest));
+    const ent = this.repo.create(payload);
+    const res = await this.repo.save(ent as any);
+    const saved: ServiceRequest = (Array.isArray(res) ? res[0] : (res as ServiceRequest));
     try {
       // Emit to admin room
       this.gateway.emitToRoom('admin', 'service-request:new', saved);
       // Emit to user room for requester
       const notifyUserId = saved.customerId || saved.createdBy || userId;
       if (notifyUserId) this.gateway.emitToRoom(`user:${notifyUserId}`, 'service-request:new', saved);
-    } catch {}
+    } catch { }
     return saved;
   }
 
@@ -89,10 +89,10 @@ export class ServiceRequestsService {
     if (q.buildingId) qb.andWhere('r.building_id = :bid', { bid: q.buildingId });
     if (q.apartmentId) qb.andWhere('r.apartment_id = :aid', { aid: q.apartmentId });
     if (q.status) qb.andWhere('r.status = :st', { st: q.status });
-  if ((q as any).type) qb.andWhere('r.type = :tp', { tp: (q as any).type });
+    if ((q as any).type) qb.andWhere('r.type = :tp', { tp: (q as any).type });
 
-  // join customer info for convenience (name, phone)
-  qb.leftJoinAndMapOne('r.customer', User, 'customer', 'customer.id = r.customer_id');
+    // join customer info for convenience (name, phone)
+    qb.leftJoinAndMapOne('r.customer', User, 'customer', 'customer.id = r.customer_id');
 
     // If user is host, restrict to their own created items
     if (user && (user.role === 'host' || user.role === 'Host')) {
@@ -100,8 +100,8 @@ export class ServiceRequestsService {
       if (uid) qb.andWhere('r.created_by = :uid', { uid });
     }
 
-    // If user is resident/user, restrict to their own requests
-    if (user && (String(user.role).toLowerCase() === 'user' || String(user.role).toLowerCase() === 'resident')) {
+    // If user is resident/user/customer, restrict to their own requests
+    if (user && (String(user.role).toLowerCase() === 'user' || String(user.role).toLowerCase() === 'resident' || String(user.role).toLowerCase() === 'customer')) {
       const uid = user.id ?? user.sub ?? null;
       if (uid) qb.andWhere('(r.customer_id = :uid OR r.created_by = :uid)', { uid });
     }

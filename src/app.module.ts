@@ -146,7 +146,10 @@ import { TasksModule } from './modules/tasks/tasks.module';
     require('./modules/categories/categories.module').CategoriesModule,
     require('./modules/service-providers/service-providers.module').ServiceProvidersModule,
     // Finance / Reporting
-    require('./modules/finance/finance.module').FinanceModule
+    require('./modules/finance/finance.module').FinanceModule,
+    require('./modules/points/points.module').PointsModule,
+    require('./modules/promotions/promotions.module').PromotionsModule,
+    require('./modules/offers/offers.module').OffersModule
   ],
   providers: [
     {

@@ -42,6 +42,16 @@ export class Contract {
   @Column({ name: 'rent_amount', type: 'decimal', precision: 12, scale: 2, nullable: true })
   rentAmount?: string | null;
 
+  @Column({ name: 'promotion_code', length: 50, nullable: true })
+  promotionCode?: string | null;
+
+  // Stored discount/promotion info at time of signing
+  @Column({ name: 'promotion_value', type: 'decimal', precision: 12, scale: 2, nullable: true })
+  promotionValue?: number | null;
+
+  @Column({ name: 'promotion_type', length: 20, nullable: true })
+  promotionType?: string | null;
+
   @Column({ name: 'payment_cycle', length: 32, nullable: true })
   paymentCycle?: string | null; // e.g. monthly, quarterly
 

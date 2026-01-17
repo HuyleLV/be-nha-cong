@@ -7,6 +7,7 @@ import { WinstonModule } from 'nest-winston';
 import { loggerConfig } from './config/logger.config';
 import helmet from 'helmet';
 import * as compression from 'compression';
+import * as cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
@@ -19,6 +20,7 @@ async function bootstrap() {
 
   // Response Compression
   app.use(compression());
+  app.use(cookieParser());
 
   // CORS Configuration - Secure
   const logger = new Logger('Main');

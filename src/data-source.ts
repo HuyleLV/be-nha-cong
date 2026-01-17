@@ -52,6 +52,10 @@ import { News } from './modules/news/entities/news.entity';
 // import { Conversation } from './modules/chat/entities/conversation.entity';
 // import { Message } from './modules/chat/entities/message.entity';
 import { BankAccount } from './modules/bank-accounts/entities/bank-account.entity';
+import { Promotion } from './modules/promotions/entities/promotion.entity';
+import { Offer } from './modules/offers/entities/offer.entity';
+import { PointTransaction } from './modules/points/entities/point-transaction.entity';
+import { CtvRequest } from './modules/ctv-requests/entities/ctv-request.entity';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'mysql',
@@ -106,6 +110,10 @@ export const dataSourceOptions: DataSourceOptions = {
     // Conversation,
     // Message
     BankAccount,
+    Promotion,
+    Offer,
+    CtvRequest,
+    PointTransaction,
   ],
   migrations: [join(__dirname, 'migrations/*{.ts,.js}')],
   synchronize: false, // Always false for migrations
