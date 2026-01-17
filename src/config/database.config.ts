@@ -12,4 +12,7 @@ export default registerAs('database', () => ({
   database: process.env.DB_NAME || 'db_nhacong',
   synchronize: (process.env.DB_SYNCHRONIZE ?? 'true') === 'true',
   logging: (process.env.DB_LOGGING ?? 'false') === 'true',
+  ssl: (process.env.DB_SSL === 'true' || (process.env.DB_HOST || '').includes('tidbcloud'))
+    ? { rejectUnauthorized: true }
+    : undefined,
 }));

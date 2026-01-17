@@ -58,10 +58,12 @@ import { TasksModule } from './modules/tasks/tasks.module';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 300, // Increased limit for map interactions
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 300, // Increased limit for map interactions
+      },
+    ]),
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, databaseConfig, mailConfig, storageConfig],
@@ -80,6 +82,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
         synchronize: cfg.get<boolean>('database.synchronize'),
         logging: cfg.get<boolean>('database.logging'),
         namingStrategy: new SnakeNamingStrategy(),
+        ssl: cfg.get<any>('database.ssl'),
       }),
     }),
     // Scheduler (daily jobs)
@@ -159,7 +162,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
     SchedulerModule,
     NotificationsModule,
     ConversationsModule,
-    TasksModule
+    TasksModule,
   ],
 })
 export class AppModule implements NestModule {
