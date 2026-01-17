@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CtvRequest } from './entities/ctv-request.entity';
@@ -10,11 +10,24 @@ export class CtvRequestsService {
   constructor(
     @InjectRepository(CtvRequest) private readonly repo: Repository<CtvRequest>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
-  ) {}
+  ) { }
 
   async create(dto: CreateCtvRequestDto, user?: any) {
+    const userId = user?.id ?? dto.userId;
+    if (userId) {
+      const existing = await this.repo.findOne({
+        where: [
+          { userId, status: 'pending' },
+          { userId, status: 'approved' }
+        ]
+      });
+      if (existing) {
+        throw new ConflictException('Bạn đã gửi yêu cầu hoặc đã là CTV rồi.');
+      }
+    }
+
     const entity = this.repo.create({
-      userId: user?.id ?? dto.userId,
+      userId: userId,
       name: dto.name ?? user?.name,
       email: dto.email ?? user?.email,
       note: dto.note ?? null,
@@ -23,8 +36,12 @@ export class CtvRequestsService {
     return this.repo.save(entity);
   }
 
-  async findAll() {
-    return this.repo.find({ order: { createdAt: 'DESC' } });
+  async findAll(status?: string) {
+    const whereCondition = status ? { status } : {};
+    return this.repo.find({
+      where: whereCondition,
+      order: { createdAt: 'DESC' }
+    });
   }
 
   async findOne(id: number) {

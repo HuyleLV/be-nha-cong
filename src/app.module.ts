@@ -39,6 +39,9 @@ import { AdvertisementsModule } from './modules/advertisements/advertisements.mo
 import { CategoriesModule } from './modules/categories/categories.module';
 import { ServiceProvidersModule } from './modules/service-providers/service-providers.module';
 import { FinanceModule } from './modules/finance/finance.module';
+import { PointsModule } from './modules/points/points.module';
+import { PromotionsModule } from './modules/promotions/promotions.module';
+import { OffersModule } from './modules/offers/offers.module';
 import * as cors from 'cors';
 import { InvoiceModule } from './modules/invoice/invoice.module';
 import { DepositsModule } from './modules/deposits/deposits.module';
@@ -96,55 +99,59 @@ import { TasksModule } from './modules/tasks/tasks.module';
       rootPath: join(process.cwd(), 'uploads', 'docs'),
       serveRoot: '/static/docs',
     }),
-  UploadModule,
-  UsersModule,
-  BlogModule,
-  AuthModule,
+    // core modules
+    UploadModule,
+    UsersModule,
+    BlogModule,
+    AuthModule,
 
-  // Core feature modules
-  MeterReadingModule,
-  InvoiceModule,
-  DepositsModule,
-  ContractsModule,
-  RentSchedulesModule,
-  RentCalculationModule,
-  AutomatedInvoiceModule,
-  AdminDashboardModule,
-  LandlordDashboardModule,
+    // Core feature modules
+    MeterReadingModule,
+    InvoiceModule,
+    DepositsModule,
+    ContractsModule,
+    RentSchedulesModule,
+    RentCalculationModule,
+    AutomatedInvoiceModule,
+    AdminDashboardModule,
+    LandlordDashboardModule,
 
-  LocationsModule,
-  ApartmentsModule,
-  PartnersModule,
-  BuildingsModule,
-  BedsModule,
-  AssetsModule,
-  VehiclesModule,
-  ServicesModule,
-  ServiceRequestsModule,
-  ReportsModule,
-  OwnershipsModule,
-  FavoritesModule,
-  ViewingsModule,
-  CommentsModule,
-  JobsModule,
-  NewsModule,
-  CtvRequestsModule,
-  ThuChiModule,
+    LocationsModule,
+    ApartmentsModule,
+    PartnersModule,
+    BuildingsModule,
+    BedsModule,
+    AssetsModule,
+    VehiclesModule,
+    ServicesModule,
+    ServiceRequestsModule,
+    ReportsModule,
+    OwnershipsModule,
+    FavoritesModule,
+    ViewingsModule,
+    CommentsModule,
+    JobsModule,
+    NewsModule,
+    CtvRequestsModule,
+    ThuChiModule,
 
-  // Finance & utilities
-  BankAccountsModule,
-  SchedulerModule,
-  NotificationsModule,
-  ConversationsModule,
-  TasksModule,
+    // Finance & utilities
+    BankAccountsModule,
+    SchedulerModule,
+    NotificationsModule,
+    ConversationsModule,
+    TasksModule,
 
-  // Newly ported / admin modules
-  HostSettingsModule,
-  SystemSettingsModule,
-  AdvertisementsModule,
-  CategoriesModule,
-  ServiceProvidersModule,
-  FinanceModule,
+    // Newly ported / admin modules
+    HostSettingsModule,
+    SystemSettingsModule,
+    AdvertisementsModule,
+    CategoriesModule,
+    ServiceProvidersModule,
+    FinanceModule,
+    PointsModule,
+    PromotionsModule,
+    OffersModule,
   ],
   providers: [
     {

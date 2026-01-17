@@ -9,9 +9,9 @@ import { UpdateContractDto } from './dto/update-contract.dto';
 export class ContractsService {
   constructor(
     @InjectRepository(Contract) private readonly repo: Repository<Contract>,
-  ) {}
+  ) { }
 
-  async findAll(params?: { page?: number; limit?: number; ownerId?: number; status?: string; apartmentId?: number }) {
+  async findAll(params?: { page?: number; limit?: number; ownerId?: number; status?: string; apartmentId?: number; customerId?: number }) {
     const page = Math.max(1, Number(params?.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(params?.limit) || 20));
     const skip = (page - 1) * limit;
@@ -28,6 +28,10 @@ export class ContractsService {
 
     if (params?.apartmentId) {
       qb.andWhere('c.apartment_id = :apartmentId', { apartmentId: params.apartmentId });
+    }
+
+    if (params?.customerId) {
+      qb.andWhere('c.customer_id = :customerId', { customerId: params.customerId });
     }
 
     const [items, total] = await qb.getManyAndCount();
@@ -97,11 +101,11 @@ export class ContractsService {
 
     return { total, expiringSoon, expired, terminated };
   }
-  async findByBuildingId(buildingId: number){
+  async findByBuildingId(buildingId: number) {
     return this.repo.find({ where: { buildingId } });
   }
 
-  async findByApartmentId(apartmentId: number){
+  async findByApartmentId(apartmentId: number) {
     return this.repo.find({ where: { apartmentId } });
   }
 }

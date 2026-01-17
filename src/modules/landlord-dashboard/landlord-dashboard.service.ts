@@ -123,9 +123,15 @@ export class LandlordDashboardService {
         const contractedCustomers = 0;
 
         // 9. Thống kê công việc
-        const tasks = await this.taskRepo.find({
-            where: { createdBy: userId } as any,
-        });
+        // 9. Thống kê công việc
+        // Fix: Task entity doesn't have createdBy. Filter by related apartments.
+        let tasks: Task[] = [];
+        if (apartmentIds.length > 0) {
+            tasks = await this.taskRepo.find({
+                where: { apartmentId: In(apartmentIds) } as any,
+            });
+        }
+
         const incompleteTasks = tasks.filter(
             (t) => t.status !== TaskStatus.DONE,
         ).length;

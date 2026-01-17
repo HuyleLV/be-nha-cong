@@ -12,7 +12,7 @@ import { QueryBankAccountDto } from './dto/query-bank-account.dto';
 export class BankAccountsService {
   constructor(
     @InjectRepository(BankAccount) private readonly repo: Repository<BankAccount>,
-  ) {}
+  ) { }
 
   async hostList(userId: number, q: QueryBankAccountDto) {
     const page = q.page ?? 1;
@@ -115,66 +115,96 @@ export class BankAccountsService {
    * Return daily cashbook per account between start and end (inclusive).
    * Result: array of { date: 'YYYY-MM-DD', accountId, accountLabel, startingBalance, totalThu, totalChi, endingBalance }
    */
-  async hostDailyCashbook(userId: number, startDate: string, endDate: string) {
-    // normalize dates
-    const start = new Date(startDate + 'T00:00:00');
-    const end = new Date(endDate + 'T00:00:00');
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
+  async hostDailyCashbook(userId: number, startDate?: string, endDate?: string) {
+    // default to current month if dates missing
+    const now = new Date();
+    let start = new Date(startDate ? startDate + 'T00:00:00' : new Date(now.getFullYear(), now.getMonth(), 1).toISOString());
+    let end = new Date(endDate ? endDate + 'T23:59:59' : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString());
+
+    if (isNaN(start.getTime())) start = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (isNaN(end.getTime())) end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     // get owner's accounts
     const accounts = await this.repo.find({ where: { ownerId: userId } });
     const results: any[] = [];
+    if (!accounts.length) return []; // return empty if no accounts
 
     // helper to format date YYYY-MM-DD
-    const fmt = (d: Date) => d.toISOString().slice(0,10);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const startStr = fmt(start);
+    const endStr = fmt(end);
+
+    // cache ThuChi repository
+    const thuChiRepo = this.repo.manager.getRepository(ThuChi);
 
     // for each account, compute sum before start, and daily aggregates inside range
     for (const acc of accounts) {
+      if (!acc.accountNumber) continue; // skip if no account number
+
       const kw = `%${acc.accountNumber}%`;
       // sum before start
-      const qbBefore = this.repo.manager.getRepository(ThuChi).createQueryBuilder('t')
-        .leftJoin('t.items','it')
+      const qbBefore = thuChiRepo.createQueryBuilder('t')
+        .leftJoin('t.items', 'it')
         .select("COALESCE(SUM(CASE WHEN t.type = 'thu' THEN COALESCE(it.amount,0) WHEN t.type = 'chi' THEN -COALESCE(it.amount,0) ELSE 0 END), 0)", 'sum')
         .where('t.account LIKE :kw', { kw })
-        .andWhere('t.date < :start', { start: fmt(start) });
+        .andWhere('t.date < :start', { start: startStr });
+
       const rawBefore: any = await qbBefore.getRawOne();
       const sumBefore = Number(rawBefore?.sum ?? 0) || 0;
 
       // daily aggregates inside range grouped by date and type
-      const qbDaily = this.repo.manager.getRepository(ThuChi).createQueryBuilder('t')
-        .leftJoin('t.items','it')
+      const qbDaily = thuChiRepo.createQueryBuilder('t')
+        .leftJoin('t.items', 'it')
         .select('t.date', 'date')
         .addSelect("SUM(CASE WHEN t.type = 'thu' THEN COALESCE(it.amount,0) ELSE 0 END)", 'thu')
         .addSelect("SUM(CASE WHEN t.type = 'chi' THEN COALESCE(it.amount,0) ELSE 0 END)", 'chi')
         .where('t.account LIKE :kw', { kw })
-        .andWhere('t.date BETWEEN :start AND :end', { start: fmt(start), end: fmt(end) })
+        .andWhere('t.date BETWEEN :start AND :end', { start: startStr, end: endStr })
         .groupBy('t.date')
         .orderBy('t.date', 'ASC');
+
       const dailyRows: any[] = await qbDaily.getRawMany();
 
       // map dates to totals
-      const dateMap: Record<string, { thu:number; chi:number }> = {};
+      const dateMap: Record<string, { thu: number; chi: number }> = {};
       for (const r of dailyRows) {
-        const d = fmt(new Date(r.date));
+        if (!r.date) continue;
+        const d = (r.date instanceof Date ? r.date : new Date(r.date)).toISOString().slice(0, 10);
         dateMap[d] = { thu: Number(r.thu ?? 0) || 0, chi: Number(r.chi ?? 0) || 0 };
       }
 
       // iterate days
       let running = sumBefore;
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
-        const day = fmt(new Date(d));
+      // Loop date from start to end
+      const current = new Date(start);
+      while (current <= end) {
+        const day = fmt(current);
         const totals = dateMap[day] ?? { thu: 0, chi: 0 };
         const starting = running;
         const totalThu = totals.thu;
         const totalChi = totals.chi;
         const ending = starting + totalThu - totalChi;
-        results.push({ date: day, accountId: acc.id, accountLabel: `${acc.bankName} — ${acc.accountNumber}${acc.branch ? ' — ' + acc.branch : ''} (${acc.accountHolder})`, startingBalance: starting, totalThu, totalChi, endingBalance: ending });
+
+        // Push only if there is activity OR strict daily reporting? 
+        // Requirement usually implies seeing daily balance.
+        // We push every day in range.
+        results.push({
+          date: day,
+          accountId: acc.id,
+          accountLabel: `${acc.bankName || ''} — ${acc.accountNumber}${acc.branch ? ' — ' + acc.branch : ''} (${acc.accountHolder || ''})`.trim(),
+          startingBalance: starting,
+          totalThu,
+          totalChi,
+          endingBalance: ending
+        });
+
         running = ending;
+        current.setDate(current.getDate() + 1);
       }
     }
 
     // sort by date then accountId
-    results.sort((a,b)=> a.date.localeCompare(b.date) || (a.accountId - b.accountId));
+    results.sort((a, b) => a.date.localeCompare(b.date) || (a.accountId - b.accountId));
     return results;
   }
 

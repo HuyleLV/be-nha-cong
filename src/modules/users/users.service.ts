@@ -17,13 +17,15 @@ export class UsersService {
     @InjectRepository(User) private readonly repo: Repository<User>,
     @InjectRepository(Viewing) private readonly viewingRepo: Repository<Viewing>,
     @InjectRepository(Apartment) private readonly aptRepo: Repository<Apartment>,
-  ) {}
+  ) { }
 
   async findAll(query: PaginationQueryDto, requester?: any) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const q = (query as any)?.q as string | undefined;
     const customerStatus = (query as any)?.customerStatus as string | undefined;
+
+    console.log('[UsersService.findAll] Query:', query, 'Requester:', requester);
 
     const hasContractOrDepositRaw = (query as any)?.hasContractOrDeposit;
     const hasContractOrDeposit = typeof hasContractOrDepositRaw !== 'undefined' && (hasContractOrDepositRaw === true || hasContractOrDepositRaw === 'true' || hasContractOrDepositRaw === '1' || hasContractOrDepositRaw === 1);
@@ -147,8 +149,8 @@ export class UsersService {
       idCardBack: (dto as any).idCardBack ?? null,
       idCardNumber: (dto as any).idCardNumber ?? null,
       address: (dto as any).address ?? null,
-        idIssueDate: (dto as any).idIssueDate ? new Date((dto as any).idIssueDate) : null,
-        idIssuePlace: (dto as any).idIssuePlace ?? null,
+      idIssueDate: (dto as any).idIssueDate ? new Date((dto as any).idIssueDate) : null,
+      idIssuePlace: (dto as any).idIssuePlace ?? null,
       note: (dto as any).note ?? null,
       gender: (dto as any).gender ?? null,
       dateOfBirth: (dto as any).dateOfBirth ? new Date((dto as any).dateOfBirth) : null,

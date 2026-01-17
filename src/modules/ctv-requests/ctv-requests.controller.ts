@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards, Req, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Req, Get, Param, Patch, Query } from '@nestjs/common';
 import { CtvRequestsService } from './ctv-requests.service';
 import { CreateCtvRequestDto } from './dto/create-ctv-request.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -7,7 +7,7 @@ import { Roles } from '../auth/roles.decorator';
 
 @Controller('ctv/requests')
 export class CtvRequestsController {
-  constructor(private readonly svc: CtvRequestsService) {}
+  constructor(private readonly svc: CtvRequestsService) { }
 
   // Any authenticated user can create a request
   @UseGuards(JwtAuthGuard)
@@ -20,13 +20,13 @@ export class CtvRequestsController {
 
 @Controller('admin/ctv-requests')
 export class AdminCtvRequestsController {
-  constructor(private readonly svc: CtvRequestsService) {}
+  constructor(private readonly svc: CtvRequestsService) { }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Get()
-  async list() {
-    return this.svc.findAll();
+  async list(@Query('status') status?: string) {
+    return this.svc.findAll(status);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -35,7 +35,7 @@ export class AdminCtvRequestsController {
   async approve(@Param('id') id: string, @Req() req: any) {
     return this.svc.approve(Number(id), req?.user?.id);
   }
-  
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Post(':id/reject')
